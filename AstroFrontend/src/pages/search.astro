@@ -1,6 +1,6 @@
 ---
 import Layout from '@/layouts/Layout.astro';
-import { artworks, artists, artworksByArtist } from '@/data/gallery';
+import { artworks, artists, artworksByArtist, galleryTags } from '@/data/gallery';
 
 const searchIndex = {
   works: artworks.map((w) => ({
@@ -19,10 +19,17 @@ const searchIndex = {
     sample: artworksByArtist(a.id).slice(0, 3).map((w) => ({ bg: w.bg })),
     haystack: `${a.name} ${a.location} ${a.disciplines}`.toLowerCase(),
   })),
+  tags: galleryTags.map((tag) => ({
+    name: tag.name,
+    slug: tag.slug,
+    description: tag.description,
+    count: tag.count,
+    haystack: `${tag.name} ${tag.description}`.toLowerCase(),
+  })),
 };
 ---
 
-<Layout title="Search — Verso">
+<Layout title="Search — Verso" robots="noindex, follow">
   <main class="container page">
     <div class="eyebrow">Search</div>
     <h1 class="page__h1" data-search-h1>&ldquo;<span data-search-q></span>&rdquo;</h1>
@@ -33,8 +40,13 @@ const searchIndex = {
     </p>
 
     <p class="empty" data-search-prompt hidden>
-      Type a query in the header search to find artists and works.
+      Type a query in the header search to find artists, works and tags.
     </p>
+
+    <div class="section" data-search-tags-section hidden>
+      <h2 class="section__h2">Tags</h2>
+      <div class="tags-grid" data-search-tags></div>
+    </div>
 
     <div class="section" data-search-artists-section hidden>
       <h2 class="section__h2">Artists</h2>
@@ -66,7 +78,14 @@ const searchIndex = {
       sample: { bg: string }[];
       haystack: string;
     };
-    type Index = { works: WorkRow[]; artists: ArtistRow[] };
+    type TagRow = {
+      name: string;
+      slug: string;
+      description: string;
+      count: number;
+      haystack: string;
+    };
+    type Index = { works: WorkRow[]; artists: ArtistRow[]; tags: TagRow[] };
 
     const indexEl = document.querySelector<HTMLScriptElement>('[data-search-index]');
     if (!indexEl) throw new Error('search index missing');
@@ -85,12 +104,16 @@ const searchIndex = {
     const emptyEl = $('[data-search-empty]') as HTMLElement;
     const promptEl = $('[data-search-prompt]') as HTMLElement;
     const artistsSec = $('[data-search-artists-section]') as HTMLElement;
+    const tagsSec = $('[data-search-tags-section]') as HTMLElement;
     const worksSec = $('[data-search-works-section]') as HTMLElement;
     const artistsHost = $('[data-search-artists]') as HTMLElement;
+    const tagsHost = $('[data-search-tags]') as HTMLElement;
     const worksHost = $('[data-search-works]') as HTMLElement;
 
     const params = new URLSearchParams(window.location.search);
     const q = (params.get('q') ?? '').trim();
+    const headerSearch = document.querySelector<HTMLInputElement>('[data-header-search]');
+    if (headerSearch) headerSearch.value = q;
 
     if (!q) {
       h1.hidden = true;
@@ -103,7 +126,8 @@ const searchIndex = {
       const qLower = q.toLowerCase();
       const works = idx.works.filter((w) => w.haystack.includes(qLower));
       const artists = idx.artists.filter((a) => a.haystack.includes(qLower));
-      const total = works.length + artists.length;
+      const tags = idx.tags.filter((tag) => tag.haystack.includes(qLower));
+      const total = works.length + artists.length + tags.length;
       countEl.textContent = String(total);
       nounEl.textContent = total === 1 ? 'result' : 'results';
 
@@ -130,6 +154,21 @@ const searchIndex = {
               </a>
             `;
           })
+          .join('');
+      }
+
+      if (tags.length > 0) {
+        tagsSec.hidden = false;
+        tagsHost.innerHTML = tags
+          .map(
+            (tag) => `
+              <a class="tag-result" href="/tags/${tag.slug}">
+                <span class="tag-result__name">${escapeHtml(tag.name)}</span>
+                <span class="tag-result__count">${tag.count} ${tag.count === 1 ? 'work' : 'works'}</span>
+                <span class="tag-result__description">${escapeHtml(tag.description)}</span>
+              </a>
+            `,
+          )
           .join('');
       }
 
@@ -204,6 +243,41 @@ const searchIndex = {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
     gap: 32px;
+  }
+  .tags-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 1px;
+    border: 1px solid var(--border);
+    background: var(--border);
+  }
+  .tag-result {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 12px;
+    min-height: 150px;
+    padding: 24px;
+    background: var(--bg);
+  }
+  .tag-result:hover {
+    background: var(--surface);
+  }
+  .tag-result__name {
+    font-family: 'Spectral', serif;
+    font-size: 25px;
+  }
+  .tag-result__count {
+    color: var(--faint);
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .tag-result__description {
+    grid-column: 1 / -1;
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.6;
   }
   .masonry {
     column-count: 2;

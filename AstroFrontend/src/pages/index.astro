@@ -13,9 +13,18 @@ const spotlightWorks = artworksByArtist(spotlight.id).slice(0, 3);
 
 const newIds = [4, 20, 28, 8, 16, 32, 14, 2, 27, 18, 6, 35];
 const newWorks = newIds.map((i) => artworks[i]!).filter(Boolean);
+const homeDescription = 'Discover contemporary painters, photographers, printmakers, sculptors and digital artists through a curated index of artists and works.';
+const siteUrl = Astro.site ?? Astro.url.origin;
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'WebSite',
+  name: 'Verso',
+  url: new URL('/', siteUrl).toString(),
+  description: homeDescription,
+};
 ---
 
-<Layout>
+<Layout description={homeDescription} canonicalPath="/" jsonLd={jsonLd}>
   <main>
     <section class="container hero">
       <div class="eyebrow">Index № 04 — Summer 2026</div>
@@ -29,7 +38,8 @@ const newWorks = newIds.map((i) => artworks[i]!).filter(Boolean);
       </div>
     </section>
 
-    <section class="container hero-works">
+    <section class="container hero-works" aria-labelledby="featured-works-title">
+      <h2 id="featured-works-title" class="sr-only">Featured works</h2>
       <div class="hero-works__grid">
         {heroWorks.map((w) => <WorkCard work={w} variant="pin" />)}
       </div>
@@ -58,8 +68,8 @@ const newWorks = newIds.map((i) => artworks[i]!).filter(Boolean);
 
     <section class="container recent">
       <div class="recent__head">
-        <h2 class="h-section recent__h2">Recently added</h2>
-        <a class="recent__more" href="/artists">All artists →</a>
+        <h2 class="h-section recent__h2">Selected works</h2>
+        <a class="recent__more" href="/explore">Explore all works →</a>
       </div>
       <div class="masonry">
         {newWorks.map((w) => <WorkCard work={w} variant="pin" />)}
@@ -78,6 +88,17 @@ const newWorks = newIds.map((i) => artworks[i]!).filter(Boolean);
 <style>
   .hero {
     padding: clamp(44px, 8vw, 104px) 0 clamp(28px, 4vw, 52px);
+  }
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
   }
   .hero__h1 {
     font-size: clamp(40px, 7.4vw, 104px);

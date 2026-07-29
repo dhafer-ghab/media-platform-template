@@ -1,7 +1,7 @@
 ---
 import Layout from '@/layouts/Layout.astro';
 import WorkCard from '@/components/ui/WorkCard.astro';
-import { artists, artworksByArtist } from '@/data/gallery';
+import { artists, artworksByArtist, slugify } from '@/data/gallery';
 
 export function getStaticPaths() {
   return artists.map((a) => ({ params: { slug: a.slug } }));
@@ -40,7 +40,7 @@ const tagSet = [...new Set(works.flatMap((w) => w.tags))];
         <div>
           <p class="artist-head__bio">{artist.bio}</p>
           <div class="artist-head__tags">
-            {tagSet.map((t) => <a class="tag-pill" href={`/tags/${encodeURIComponent(t.toLowerCase())}`}>{t}</a>)}
+            {tagSet.map((t) => <a class="tag-pill" href={`/tags/${slugify(t)}`}>{t}</a>)}
           </div>
         </div>
       </div>

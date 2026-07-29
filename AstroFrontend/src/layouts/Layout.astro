@@ -6,13 +6,23 @@ interface Props {
   title?: string;
   description?: string;
   initialQ?: string;
+  canonicalPath?: string;
+  jsonLd?: Record<string, unknown> | Record<string, unknown>[];
+  robots?: string;
 }
 
 const {
   title = 'Verso — An index of contemporary visual artists',
   description = 'Verso is a slow place to discover painters, photographers, printmakers and digital artists from around the world — one work at a time.',
   initialQ = '',
+  canonicalPath,
+  jsonLd,
+  robots,
 } = Astro.props;
+
+const canonicalUrl = canonicalPath
+  ? new URL(canonicalPath, Astro.site ?? Astro.url.origin).toString()
+  : undefined;
 ---
 
 <!doctype html>
@@ -22,6 +32,17 @@ const {
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{title}</title>
     <meta name="description" content={description} />
+    {robots && <meta name="robots" content={robots} />}
+    {canonicalUrl && <link rel="canonical" href={canonicalUrl} />}
+    {canonicalUrl && <meta property="og:type" content="website" />}
+    {canonicalUrl && <meta property="og:site_name" content="Verso" />}
+    {canonicalUrl && <meta property="og:title" content={title} />}
+    {canonicalUrl && <meta property="og:description" content={description} />}
+    {canonicalUrl && <meta property="og:url" content={canonicalUrl} />}
+    {canonicalUrl && <meta name="twitter:card" content="summary" />}
+    {canonicalUrl && <meta name="twitter:title" content={title} />}
+    {canonicalUrl && <meta name="twitter:description" content={description} />}
+    {jsonLd && <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />}
     <meta name="theme-color" content="#f5f2ec" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#14110e" media="(prefers-color-scheme: dark)" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -44,9 +65,12 @@ const {
     </script>
   </head>
   <body>
+    <a class="skip-link" href="#main-content">Skip to main content</a>
     <div class="page">
       <Header initialQ={initialQ} />
-      <slot />
+      <div id="main-content" tabindex="-1">
+        <slot />
+      </div>
       <Footer />
     </div>
 
@@ -132,10 +156,10 @@ const {
         --text-2: #3a362f;
         --text-3: #4a463f;
         --muted: #6b655c;
-        --faint: #9a9286;
+        --faint: #756e64;
         --border: #c9c2b4;
         --border-soft: #e2dccf;
-        --accent: #c8482b;
+        --accent: #a83b24;
         --header-bg: rgba(245, 242, 236, 0.9);
         --hairline: rgba(0, 0, 0, 0.07);
         --chip-bg: rgba(26, 23, 20, 0.06);
@@ -189,6 +213,29 @@ const {
       a {
         color: inherit;
         text-decoration: none;
+      }
+      :focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 3px;
+      }
+      #main-content:focus {
+        outline: none;
+      }
+      .skip-link {
+        position: fixed;
+        z-index: 100;
+        top: 12px;
+        left: 12px;
+        padding: 10px 14px;
+        background: var(--ink);
+        color: var(--on-ink);
+        font-size: 12px;
+        font-weight: 600;
+        transform: translateY(-160%);
+        transition: transform 0.2s;
+      }
+      .skip-link:focus {
+        transform: translateY(0);
       }
       button {
         font-family: inherit;

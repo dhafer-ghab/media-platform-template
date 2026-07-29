@@ -168,7 +168,7 @@ export type Artwork = {
   slug: string;
 };
 
-function slugify(s: string): string {
+export function slugify(s: string): string {
   return s
     .toLowerCase()
     .normalize('NFKD')
@@ -259,3 +259,36 @@ export function artistsByTag(tag: string): Artist[] {
 }
 
 export const allTags: string[] = [...new Set(artworks.flatMap((w) => w.tags))].sort();
+
+const tagDescriptions: Record<string, string> = {
+  Abstract: 'Explore works shaped by color, gesture, geometry and material rather than direct representation.',
+  'Color Field': 'Discover expansive areas of color where tone, atmosphere and visual rhythm take the lead.',
+  Figurative: 'Browse contemporary works centered on recognizable people, interiors and forms from everyday life.',
+  Geometric: 'Find compositions built through line, structure, repetition and carefully balanced shapes.',
+  Landscape: 'See artists interpret natural and urban environments through painting, photography, print and drawing.',
+  Minimal: 'Explore restrained works where limited materials, forms and gestures create space for close attention.',
+  Monochrome: 'Discover works that use a single color family to examine light, texture, contrast and mood.',
+  Organic: 'Browse fluid, irregular forms inspired by growth, weather, bodies and the natural world.',
+  Portrait: 'Meet contemporary approaches to likeness, identity and presence across painting and drawing.',
+  'Still Life': 'Explore arrangements of objects and interiors that turn ordinary subjects into studies of color and time.',
+};
+
+export type GalleryTag = {
+  name: string;
+  slug: string;
+  description: string;
+  count: number;
+  artistCount: number;
+};
+
+export const galleryTags: GalleryTag[] = allTags.map((name) => ({
+  name,
+  slug: slugify(name),
+  description: tagDescriptions[name] ?? `Browse contemporary artworks connected by the ${name.toLowerCase()} tag.`,
+  count: artworksByTag(name).length,
+  artistCount: artistsByTag(name).length,
+}));
+
+export function getTagBySlug(slug: string): GalleryTag | undefined {
+  return galleryTags.find((tag) => tag.slug === slug);
+}

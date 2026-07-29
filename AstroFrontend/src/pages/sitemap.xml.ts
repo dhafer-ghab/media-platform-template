@@ -1,5 +1,6 @@
 import type { APIRoute } from 'astro';
 import { actors } from '@/data/media';
+import { artists, artworks, categories, galleryTags } from '@/data/gallery';
 import { actorPath, absoluteUrl } from '@/lib/routes';
 
 export const prerender = false;
@@ -21,6 +22,14 @@ type Entry = { loc: string; lastmod?: string };
 export const GET: APIRoute = ({ site }) => {
   const entries: Entry[] = [
     { loc: absoluteUrl('/', site) },
+    { loc: absoluteUrl('/explore', site) },
+    { loc: absoluteUrl('/artists', site) },
+    ...artists.map((artist) => ({ loc: absoluteUrl(`/artists/${artist.slug}`, site) })),
+    { loc: absoluteUrl('/categories', site) },
+    ...categories.map((category) => ({ loc: absoluteUrl(`/categories/${category.slug}`, site) })),
+    { loc: absoluteUrl('/tags', site) },
+    ...galleryTags.map((tag) => ({ loc: absoluteUrl(`/tags/${tag.slug}`, site) })),
+    ...artworks.map((work) => ({ loc: absoluteUrl(`/works/${work.slug}`, site) })),
 
     // Actor profiles. Page 1 only — paginated pages are self-canonical and
     // reachable via rel=next, and listing them here would bury the entry

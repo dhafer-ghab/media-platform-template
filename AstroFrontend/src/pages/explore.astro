@@ -1,0 +1,396 @@
+---
+import Layout from '@/layouts/Layout.astro';
+import WorkCard from '@/components/ui/WorkCard.astro';
+import { artworks, categories, galleryTags } from '@/data/gallery';
+
+const title = 'Explore Contemporary Artworks | Verso';
+const description = `Browse ${artworks.length} contemporary artworks by artist, category, tag and year in the Verso index.`;
+const siteUrl = Astro.site ?? Astro.url.origin;
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'CollectionPage',
+  name: 'Explore contemporary artworks',
+  description,
+  url: new URL('/explore', siteUrl).toString(),
+  mainEntity: {
+    '@type': 'ItemList',
+    numberOfItems: artworks.length,
+    itemListElement: artworks.map((work, index) => ({
+      '@type': 'ListItem',
+      position: index + 1,
+      name: work.title,
+      url: new URL(`/works/${work.slug}`, siteUrl).toString(),
+    })),
+  },
+};
+
+const initialQuery = Astro.url.searchParams.get('q')?.trim() ?? '';
+const initialCategory = Astro.url.searchParams.get('category') ?? '';
+const initialTag = Astro.url.searchParams.get('tag') ?? '';
+const requestedSort = Astro.url.searchParams.get('sort') ?? 'featured';
+const initialSort = ['featured', 'newest', 'oldest', 'title'].includes(requestedSort)
+  ? requestedSort
+  : 'featured';
+const normalize = (value: string) =>
+  value.toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '').trim();
+const terms = normalize(initialQuery).split(/\s+/).filter(Boolean);
+const filteredWorks = artworks
+  .filter((work) => {
+    const search = normalize(`${work.title} ${work.artistName} ${work.medium} ${work.category} ${work.tags.join(' ')}`);
+    const tagSlugs = work.tags.map((tag) => galleryTags.find((item) => item.name === tag)?.slug ?? '');
+    return terms.every((term) => search.includes(term))
+      && (!initialCategory || work.categorySlug === initialCategory)
+      && (!initialTag || tagSlugs.includes(initialTag));
+  })
+  .sort((a, b) => {
+    if (initialSort === 'newest') return b.year - a.year;
+    if (initialSort === 'oldest') return a.year - b.year;
+    if (initialSort === 'title') return a.title.localeCompare(b.title);
+    return artworks.indexOf(a) - artworks.indexOf(b);
+  });
+---
+
+<Layout title={title} description={description} canonicalPath="/explore" jsonLd={jsonLd}>
+  <main class="container page">
+    <header class="intro">
+      <div class="eyebrow">The complete index</div>
+      <div class="intro__grid">
+        <h1 class="h-display intro__title">Explore the collection.</h1>
+        <p>Search across artists and works, or narrow the index by discipline and theme.</p>
+      </div>
+    </header>
+
+    <section class="catalog" aria-labelledby="catalog-title">
+      <div class="catalog__heading">
+        <h2 id="catalog-title" class="h-section">All works</h2>
+        <p data-explore-count aria-live="polite">{filteredWorks.length} {filteredWorks.length === 1 ? 'work' : 'works'}</p>
+      </div>
+
+      <form class="filters" role="search" action="/explore" method="get" data-explore-form>
+        <div class="search-field">
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true">
+            <circle cx="11" cy="11" r="7"></circle>
+            <path d="M21 21l-4.3-4.3"></path>
+          </svg>
+          <label class="sr-only" for="explore-query">Search artworks or artists</label>
+          <input id="explore-query" type="search" name="q" value={initialQuery} placeholder="Search artworks or artists..." autocomplete="off" data-explore-query />
+        </div>
+
+        <label class="select-field">
+          <span>Category</span>
+          <select name="category" data-explore-category>
+            <option value="">All categories</option>
+            {categories.map((category) => <option value={category.slug} selected={category.slug === initialCategory}>{category.name}</option>)}
+          </select>
+        </label>
+
+        <label class="select-field">
+          <span>Tag</span>
+          <select name="tag" data-explore-tag>
+            <option value="">All tags</option>
+            {galleryTags.map((tag) => <option value={tag.slug} selected={tag.slug === initialTag}>{tag.name}</option>)}
+          </select>
+        </label>
+
+        <label class="select-field select-field--sort">
+          <span>Sort</span>
+          <select name="sort" data-explore-sort>
+            <option value="featured" selected={initialSort === 'featured'}>Featured</option>
+            <option value="newest" selected={initialSort === 'newest'}>Year: newest</option>
+            <option value="oldest" selected={initialSort === 'oldest'}>Year: oldest</option>
+            <option value="title" selected={initialSort === 'title'}>Title: A-Z</option>
+          </select>
+        </label>
+
+        <button class="clear" type="button" data-explore-clear hidden>Clear filters</button>
+      </form>
+
+      <p class="empty" role="status" data-explore-empty hidden={filteredWorks.length !== 0}>
+        No works match those filters. Try removing a category, tag or search term.
+      </p>
+
+      <div class="works-grid" data-explore-grid>
+        {filteredWorks.map((work) => (
+          <div
+            class="work-item"
+            data-explore-work
+            data-index={artworks.indexOf(work)}
+            data-year={work.year}
+            data-title={work.title.toLowerCase()}
+            data-category={work.categorySlug}
+            data-tags={work.tags.map((tag) => galleryTags.find((item) => item.name === tag)?.slug ?? '').join('|')}
+            data-search={`${work.title} ${work.artistName} ${work.medium} ${work.category} ${work.tags.join(' ')}`.toLowerCase()}
+          >
+            <WorkCard work={work} variant="default" />
+          </div>
+        ))}
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const form = document.querySelector<HTMLFormElement>('[data-explore-form]');
+    const queryInput = document.querySelector<HTMLInputElement>('[data-explore-query]');
+    const categorySelect = document.querySelector<HTMLSelectElement>('[data-explore-category]');
+    const tagSelect = document.querySelector<HTMLSelectElement>('[data-explore-tag]');
+    const sortSelect = document.querySelector<HTMLSelectElement>('[data-explore-sort]');
+    const clearButton = document.querySelector<HTMLButtonElement>('[data-explore-clear]');
+    const count = document.querySelector<HTMLElement>('[data-explore-count]');
+    const empty = document.querySelector<HTMLElement>('[data-explore-empty]');
+    const grid = document.querySelector<HTMLElement>('[data-explore-grid]');
+    const works = [...document.querySelectorAll<HTMLElement>('[data-explore-work]')];
+
+    const normalize = (value: string): string =>
+      value.toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '').trim();
+
+    function updateCatalog(updateUrl = true): void {
+      if (!queryInput || !categorySelect || !tagSelect || !sortSelect || !grid) return;
+
+      const query = normalize(queryInput.value);
+      const terms = query.split(/\s+/).filter(Boolean);
+      const category = categorySelect.value;
+      const tag = tagSelect.value;
+      const sort = sortSelect.value;
+      let visible = 0;
+
+      works.forEach((work) => {
+        const haystack = normalize(work.dataset.search ?? '');
+        const tags = (work.dataset.tags ?? '').split('|');
+        const matches =
+          terms.every((term) => haystack.includes(term)) &&
+          (!category || work.dataset.category === category) &&
+          (!tag || tags.includes(tag));
+        work.hidden = !matches;
+        if (matches) visible += 1;
+      });
+
+      const sorted = [...works].sort((a, b) => {
+        if (sort === 'newest') return Number(b.dataset.year) - Number(a.dataset.year);
+        if (sort === 'oldest') return Number(a.dataset.year) - Number(b.dataset.year);
+        if (sort === 'title') return (a.dataset.title ?? '').localeCompare(b.dataset.title ?? '');
+        return Number(a.dataset.index) - Number(b.dataset.index);
+      });
+      sorted.forEach((work) => grid.append(work));
+
+      if (count) count.textContent = `${visible} ${visible === 1 ? 'work' : 'works'}`;
+      if (empty) empty.hidden = visible !== 0;
+      if (clearButton) clearButton.hidden = !query && !category && !tag && sort === 'featured';
+
+      if (updateUrl) {
+        const url = new URL(window.location.href);
+        const values = { q: queryInput.value.trim(), category, tag, sort: sort === 'featured' ? '' : sort };
+        Object.entries(values).forEach(([key, value]) => {
+          if (value) url.searchParams.set(key, value);
+          else url.searchParams.delete(key);
+        });
+        window.history.replaceState({}, '', url);
+      }
+    }
+
+    if (queryInput && categorySelect && tagSelect && sortSelect) {
+      const params = new URLSearchParams(window.location.search);
+      queryInput.value = params.get('q') ?? '';
+      categorySelect.value = params.get('category') ?? '';
+      tagSelect.value = params.get('tag') ?? '';
+      sortSelect.value = params.get('sort') ?? 'featured';
+      updateCatalog(false);
+
+      queryInput.addEventListener('input', () => updateCatalog());
+      categorySelect.addEventListener('change', () => updateCatalog());
+      tagSelect.addEventListener('change', () => updateCatalog());
+      sortSelect.addEventListener('change', () => updateCatalog());
+    }
+
+    form?.addEventListener('submit', (event) => {
+      event.preventDefault();
+      updateCatalog();
+    });
+
+    clearButton?.addEventListener('click', () => {
+      if (!queryInput || !categorySelect || !tagSelect || !sortSelect) return;
+      queryInput.value = '';
+      categorySelect.value = '';
+      tagSelect.value = '';
+      sortSelect.value = 'featured';
+      updateCatalog();
+      queryInput.focus();
+    });
+  </script>
+</Layout>
+
+<style>
+  .page {
+    padding: clamp(42px, 6vw, 82px) 0 clamp(64px, 8vw, 110px);
+  }
+  .intro {
+    padding: clamp(30px, 5vw, 68px) 0 clamp(42px, 6vw, 76px);
+    border-bottom: 1px solid var(--border);
+  }
+  .intro__grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.5fr) minmax(260px, 0.6fr);
+    gap: clamp(32px, 6vw, 90px);
+    align-items: end;
+    margin-top: 16px;
+  }
+  .intro__title {
+    font-size: clamp(48px, 7.5vw, 102px);
+    max-width: 11ch;
+  }
+  .intro__grid p {
+    color: var(--muted);
+    font-family: 'Spectral', serif;
+    font-size: clamp(17px, 1.8vw, 22px);
+    line-height: 1.5;
+    margin: 0 0 7px;
+  }
+  .catalog {
+    padding-top: clamp(38px, 5vw, 62px);
+  }
+  .catalog__heading {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 24px;
+  }
+  .catalog__heading h2 {
+    font-size: clamp(28px, 3.3vw, 44px);
+  }
+  .catalog__heading p {
+    color: var(--faint);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+  .filters {
+    display: grid;
+    grid-template-columns: minmax(260px, 1fr) repeat(3, minmax(145px, auto)) auto;
+    gap: 14px;
+    align-items: end;
+    margin-top: 26px;
+    padding: 18px;
+    background: var(--surface);
+    border: 1px solid var(--border-soft);
+  }
+  .search-field {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    min-height: 46px;
+    padding: 0 14px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--muted);
+  }
+  .search-field:focus-within {
+    border-color: var(--accent);
+  }
+  .search-field input {
+    width: 100%;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    color: var(--text);
+    font: inherit;
+  }
+  .select-field {
+    display: grid;
+    gap: 6px;
+  }
+  .select-field span {
+    color: var(--muted);
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+  .select-field select {
+    min-height: 46px;
+    padding: 0 34px 0 12px;
+    border: 1px solid var(--border);
+    border-radius: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: inherit;
+  }
+  .clear {
+    min-height: 46px;
+    padding: 0 14px;
+    border: 0;
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .clear:hover {
+    color: var(--accent);
+  }
+  .works-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: clamp(28px, 3vw, 46px) clamp(18px, 2.5vw, 34px);
+    align-items: start;
+    margin-top: 42px;
+  }
+  .work-item[hidden] {
+    display: none;
+  }
+  .empty {
+    padding: 54px 0 18px;
+    color: var(--muted);
+    font-family: 'Spectral', serif;
+    font-size: 20px;
+    font-style: italic;
+  }
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+  @media (max-width: 1100px) {
+    .filters {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+    .search-field {
+      grid-column: 1 / -1;
+    }
+    .works-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
+  @media (max-width: 760px) {
+    .intro__grid {
+      grid-template-columns: 1fr;
+    }
+    .filters {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .search-field {
+      grid-column: 1 / -1;
+    }
+    .works-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+  @media (max-width: 520px) {
+    .filters {
+      grid-template-columns: 1fr;
+    }
+    .search-field {
+      grid-column: auto;
+    }
+    .works-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

@@ -1,7 +1,7 @@
 ---
 import Layout from '@/layouts/Layout.astro';
 import WorkCard from '@/components/ui/WorkCard.astro';
-import { artworks, artists, categories } from '@/data/gallery';
+import { artworks, artists, categories, slugify } from '@/data/gallery';
 
 export function getStaticPaths() {
   return artworks.map((w) => ({ params: { slug: w.slug } }));
@@ -46,7 +46,7 @@ const related = artworks
         </dl>
         <div class="detail__tags">
           {work.tags.map((t) => (
-            <a class="tag-pill" href={`/tags/${encodeURIComponent(t.toLowerCase())}`}>{t}</a>
+            <a class="tag-pill" href={`/tags/${slugify(t)}`}>{t}</a>
           ))}
         </div>
         <div class="detail__cta">

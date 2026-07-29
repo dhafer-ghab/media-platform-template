@@ -1,38 +1,95 @@
 ---
 import Layout from '@/layouts/Layout.astro';
 import WorkCard from '@/components/ui/WorkCard.astro';
-import { allTags, artworksByTag, artistsByTag } from '@/data/gallery';
+import { galleryTags, getTagBySlug, artworksByTag, artistsByTag } from '@/data/gallery';
 
 export function getStaticPaths() {
-  return allTags.map((t) => ({ params: { tag: t.toLowerCase() } }));
+  return galleryTags.map((tag) => ({ params: { tag: tag.slug } }));
 }
 
 const { tag: tagParam } = Astro.params;
-const tagName = allTags.find((t) => t.toLowerCase() === tagParam);
-if (!tagName) {
-  return Astro.redirect('/');
+const tag = getTagBySlug(tagParam ?? '');
+if (!tag) {
+  return Astro.redirect('/tags');
 }
-
-const works = artworksByTag(tagName);
-const tagArtists = artistsByTag(tagName);
+const works = artworksByTag(tag.name);
+const tagArtists = artistsByTag(tag.name);
+const title = `${tag.name} Art — Contemporary Artists & Works | Verso`;
+const workNoun = tag.count === 1 ? 'work' : 'works';
+const artistNoun = tag.artistCount === 1 ? 'artist' : 'artists';
+const description = `Browse ${tag.count} ${tag.name.toLowerCase()} ${workNoun} by ${tag.artistCount} contemporary ${artistNoun} in the Verso art index.`;
+const siteUrl = Astro.site ?? Astro.url.origin;
+const pagePath = `/tags/${tag.slug}`;
+const pageUrl = new URL(pagePath, siteUrl).toString();
+const jsonLd = [
+  {
+    '@context': 'https://schema.org',
+    '@type': 'CollectionPage',
+    name: `${tag.name} art`,
+    description,
+    url: pageUrl,
+    mainEntity: {
+      '@type': 'ItemList',
+      numberOfItems: works.length,
+      itemListElement: works.map((work, index) => ({
+        '@type': 'ListItem',
+        position: index + 1,
+        name: work.title,
+        url: new URL(`/works/${work.slug}`, siteUrl).toString(),
+      })),
+    },
+  },
+  {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'Discover', item: new URL('/', siteUrl).toString() },
+      { '@type': 'ListItem', position: 2, name: 'Tags', item: new URL('/tags', siteUrl).toString() },
+      { '@type': 'ListItem', position: 3, name: tag.name, item: pageUrl },
+    ],
+  },
+];
 ---
 
-<Layout title={`${tagName} — Verso`}>
+<Layout title={title} description={description} canonicalPath={pagePath} jsonLd={jsonLd}>
   <main class="container page">
-    <a class="back-link" href="/">← Discover</a>
-    <div class="eyebrow" style="margin-top:22px">Tag</div>
-    <h1 class="h-display page__h1">{tagName}</h1>
+    <nav class="crumbs" aria-label="Breadcrumb">
+      <a href="/">Discover</a>
+      <span class="crumb-sep" aria-hidden="true">/</span>
+      <a href="/tags">Tags</a>
+      <span class="crumb-sep" aria-hidden="true">/</span>
+      <span aria-current="page">{tag.name}</span>
+    </nav>
+    <header class="tag-head">
+      <div>
+        <div class="eyebrow">Curated tag</div>
+        <h1 class="h-display page__h1">{tag.name} art</h1>
+      </div>
+      <div class="tag-head__context">
+        <p>{tag.description}</p>
+        <div class="tag-head__stats">
+          <span><strong>{tag.count}</strong> {workNoun}</span>
+          <span><strong>{tag.artistCount}</strong> {artistNoun}</span>
+        </div>
+      </div>
+    </header>
     {tagArtists.length > 0 && (
       <div class="tag-artists">
-        <span class="tag-artists__label">Artists</span>
+        <span class="tag-artists__label">Featured artists</span>
         {tagArtists.map((a) => (
           <a class="tag-artists__chip" href={`/artists/${a.slug}`}>{a.name}</a>
         ))}
       </div>
     )}
-    <div class="masonry">
-      {works.map((w) => <WorkCard work={w} variant="masonry" />)}
-    </div>
+    <section class="works" aria-labelledby="tag-works-title">
+      <div class="works__head">
+        <h2 id="tag-works-title" class="h-section">Works in this collection</h2>
+        <span>{tag.count} {workNoun}</span>
+      </div>
+      <div class="masonry">
+        {works.map((w) => <WorkCard work={w} variant="masonry" />)}
+      </div>
+    </section>
   </main>
 </Layout>
 
@@ -40,11 +97,41 @@ const tagArtists = artistsByTag(tagName);
   .page {
     padding: clamp(36px, 5vw, 72px) 0;
   }
+  .tag-head {
+    display: grid;
+    grid-template-columns: minmax(0, 1.3fr) minmax(280px, 0.7fr);
+    gap: clamp(32px, 6vw, 90px);
+    align-items: end;
+    padding: clamp(40px, 6vw, 82px) 0 38px;
+    border-bottom: 1px solid var(--border);
+  }
   .page__h1 {
     font-size: clamp(34px, 5.5vw, 72px);
-    margin: 0.12em 0 0;
+    margin: 0.14em 0 0;
     line-height: 1;
     letter-spacing: -0.02em;
+  }
+  .tag-head__context > p {
+    color: var(--muted);
+    font-family: 'Spectral', serif;
+    font-size: clamp(17px, 1.7vw, 21px);
+    line-height: 1.5;
+    margin: 0;
+  }
+  .tag-head__stats {
+    display: flex;
+    gap: 28px;
+    margin-top: 24px;
+    color: var(--faint);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+  }
+  .tag-head__stats strong {
+    color: var(--text);
+    font-size: 14px;
+    margin-right: 4px;
   }
   .tag-artists {
     display: flex;
@@ -77,7 +164,28 @@ const tagArtists = artistsByTag(tagName);
   .masonry {
     column-count: 2;
     column-gap: 30px;
-    margin-top: 38px;
+    margin-top: 26px;
+  }
+  .works {
+    margin-top: 42px;
+  }
+  .works__head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 20px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid var(--border);
+  }
+  .works__head h2 {
+    font-size: clamp(24px, 3vw, 36px);
+  }
+  .works__head span {
+    color: var(--faint);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
   }
   @media (min-width: 700px) {
     .masonry {
@@ -87,6 +195,11 @@ const tagArtists = artistsByTag(tagName);
   @media (min-width: 1100px) {
     .masonry {
       column-count: 4;
+    }
+  }
+  @media (max-width: 700px) {
+    .tag-head {
+      grid-template-columns: 1fr;
     }
   }
 </style>

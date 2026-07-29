@@ -1,5 +1,5 @@
 ---
-import type { Artwork } from '@/data/gallery';
+import { slugify, type Artwork } from '@/data/gallery';
 
 interface Props {
   work: Artwork;
@@ -33,7 +33,7 @@ const visibleTags = work.tags.slice(0, maxTags);
             {work.category}
           </a>
           {visibleTags.map((t) => (
-            <a class="work-pin__chip" href={`/tags/${encodeURIComponent(t.toLowerCase())}`}>
+            <a class="work-pin__chip" href={`/tags/${slugify(t)}`}>
               #{t}
             </a>
           ))}
