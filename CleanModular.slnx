@@ -29,6 +29,7 @@
     <File Path="src/Tests/UnitTests/Users.Domain.UnitTests/EmailTests.cs" />
   </Folder>
   <Folder Name="/src/Tests/UnitTests/">
+    <Project Path="src/Tests/UnitTests/Users.Infrastructure.UnitTests/Users.Infrastructure.UnitTests.csproj" />
     <Project Path="src/Tests/UnitTests/Users.Domain.UnitTests/Users.Domain.UnitTests.csproj" />
     <Project Path="src/Tests/UnitTests/Users.Presentation.UnitTests/Users.Presentation.UnitTests.csproj" />
   </Folder>

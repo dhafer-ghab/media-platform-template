@@ -2,12 +2,14 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using SharedKernal.Messaging;
+using SharedKernal.Seeding;
 using Users.Application;
 using Users.Application.Abstractions;
 using Users.Application.Messaging;
 using Users.Domain.Abstractions;
 using Users.Infrastracture.Persistence;
 using Users.Infrastracture.Security;
+using Users.Infrastracture.Seeding;
 
 namespace Users.Infrastracture;
 
@@ -18,8 +20,14 @@ internal static class DependencyInjection
         IConfiguration configuration)
     {
         services.AddDbContext(configuration);
+        services.AddScoped<IDatabaseMigrator, UsersDatabaseMigrator>();
 
         services.AddUsersApplication(configuration);
+
+        services.Configure<UsersSeedOptions>(
+            configuration.GetSection(UsersSeedOptions.SectionName));
+        services.AddScoped<IUserSeedStore, UserSeedStore>();
+        services.AddScoped<IDataSeeder, UsersDataSeeder>();
 
         return services;
     }

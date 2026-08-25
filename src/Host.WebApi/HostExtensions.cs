@@ -1,6 +1,5 @@
 ﻿using MassTransit;
-using Microsoft.EntityFrameworkCore;
-using Users.Infrastracture.Persistence;
+using SharedKernal.Seeding;
 using Users.Infrastracture;
 using Users.Presentation;
 
@@ -11,7 +10,14 @@ public static class HostExtensions
 
     public static async Task ApplyMigrations(this WebApplication app)
     {
-        await MigrateModuleDbAsync<UsersDbContext>(app);
+        await using var scope = app.Services.CreateAsyncScope();
+        var migrators = scope.ServiceProvider
+            .GetServices<IDatabaseMigrator>()
+            .OrderBy(migrator => migrator.Order)
+            .ThenBy(migrator => migrator.GetType().FullName, StringComparer.Ordinal);
+
+        foreach (var migrator in migrators)
+            await migrator.MigrateAsync();
     }
 
     public static TBuilder RegisterModules<TBuilder>(this TBuilder builder) where TBuilder : IHostApplicationBuilder
@@ -21,6 +27,7 @@ public static class HostExtensions
         builder.Services.AddUsersPresentation();
 
         builder.Services.AddMessageBus();
+        builder.Services.AddHostedService<DataSeedingHostedService>();
 
         return builder;
     }
@@ -48,11 +55,4 @@ public static class HostExtensions
         return services;
     }
 
-
-    private static async Task MigrateModuleDbAsync<TDbContext>(this WebApplication app) where TDbContext : DbContext
-    {
-        await using var scope = app.Services.CreateAsyncScope();
-        var db = scope.ServiceProvider.GetRequiredService<TDbContext>();
-        await db.Database.MigrateAsync();
-    }
 }
