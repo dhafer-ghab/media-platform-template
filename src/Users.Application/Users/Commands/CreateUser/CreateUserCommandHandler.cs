@@ -10,6 +10,11 @@ internal sealed class CreateUserCommandHandler(IUserRepository userRepository, I
 {
     public async Task<Result<Guid>> Handle(CreateUserCommand request, CancellationToken cancellationToken)
     {
+        var normalizedEmail = request.Email?.Trim().ToLowerInvariant();
+        if (!string.IsNullOrWhiteSpace(normalizedEmail) &&
+            await userRepository.GetByEmailAsync(normalizedEmail, cancellationToken) is not null)
+            return Error.Conflict("User.EmailExists", "A user with that email already exists.");
+
         Result<User> result = User.Create(request.Name, request.Email, request.Password, request.Role, passwordHasher);
 
         if (result.IsFailure)
@@ -17,7 +22,11 @@ internal sealed class CreateUserCommandHandler(IUserRepository userRepository, I
 
         var user = result.Value;
         await userRepository.AddAsync(user, cancellationToken);
-        await userRepository.SaveChangesAsync(cancellationToken);
+
+        var saveResult = await userRepository.SaveChangesAsync(cancellationToken);
+        if (saveResult.IsFailure)
+            return saveResult.Error;
+
         return user.Id;
     }
 }

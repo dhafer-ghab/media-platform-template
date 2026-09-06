@@ -19,7 +19,10 @@ internal sealed class DeleteUserCommandHandler(IUserRepository userRepository)
 
         user.Delete();
         userRepository.Remove(user);
-        await userRepository.SaveChangesAsync(cancellationToken);
+        var saveResult = await userRepository.SaveChangesAsync(cancellationToken);
+        if (saveResult.IsFailure)
+            return saveResult.Error;
+
         return true;
     }
 }

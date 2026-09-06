@@ -1,3 +1,4 @@
+using SharedKernal.Results;
 using Users.Domain;
 
 namespace Users.Application.Abstractions;
@@ -16,5 +17,5 @@ internal interface IUserRepository
 
     void Remove(User user);
 
-    Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
+    Task<Result<int>> SaveChangesAsync(CancellationToken cancellationToken = default);
 }
