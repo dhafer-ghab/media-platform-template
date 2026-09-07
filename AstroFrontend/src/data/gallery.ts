@@ -1,5 +1,6 @@
 // Verso gallery dataset — ported from the original Claude design export.
 // Backgrounds are procedurally generated CSS gradients (no real images).
+import artworkSlugs from './artwork-slugs.json';
 
 export const palette = {
   ink: '#221F1A',
@@ -102,6 +103,17 @@ const rawWorks: RawWork[] = [
 ];
 
 const aspectRatios = [0.8, 1.3, 1, 0.78, 1.5, 0.92];
+const catalogAddedDates = [
+  '2026-05-02', '2026-05-04', '2026-05-06', '2026-05-08',
+  '2026-05-11', '2026-05-13', '2026-05-15', '2026-05-18',
+  '2026-05-20', '2026-05-22', '2026-05-25', '2026-05-27',
+  '2026-06-01', '2026-06-03', '2026-06-05', '2026-06-08',
+  '2026-06-10', '2026-06-12', '2026-06-15', '2026-06-17',
+  '2026-06-19', '2026-06-22', '2026-06-24', '2026-06-26',
+  '2026-07-01', '2026-07-03', '2026-07-06', '2026-07-08',
+  '2026-07-10', '2026-07-13', '2026-07-15', '2026-07-17',
+  '2026-07-20', '2026-07-22', '2026-07-24', '2026-07-27',
+] as const;
 
 function genBg(pattern: BgPattern, colors: string[]): string {
   const [c0, c1, c2] = colors;
@@ -166,6 +178,7 @@ export type Artwork = {
   bg: string;
   size: string;
   slug: string;
+  addedAt: string;
 };
 
 export function slugify(s: string): string {
@@ -190,6 +203,11 @@ export const artists: Artist[] = rawArtists.map((a, i) => ({
 }));
 
 export const artworks: Artwork[] = rawWorks.map((w, i) => {
+  const expectedSlug = `${slugify(w[1])}-${i}`;
+  const slug = artworkSlugs[i];
+  if (slug !== expectedSlug) {
+    throw new Error(`Artwork slug manifest mismatch at index ${i}: expected ${expectedSlug}, received ${slug ?? 'missing'}.`);
+  }
   const colors = w[7].split(',').map((k) => palette[k.trim() as PaletteKey]);
   const ar = aspectRatios[i % aspectRatios.length]!;
   return {
@@ -207,9 +225,18 @@ export const artworks: Artwork[] = rawWorks.map((w, i) => {
     ar,
     bg: genBg(w[6], colors),
     size: genSize(w[3], ar, i),
-    slug: slugify(w[1]) + '-' + i,
+    slug,
+    addedAt: catalogAddedDates[i]!,
   };
 });
+
+if (
+  artworkSlugs.length !== rawWorks.length ||
+  catalogAddedDates.length !== rawWorks.length ||
+  new Set(artworkSlugs).size !== artworkSlugs.length
+) {
+  throw new Error('Artwork slug manifest must contain one unique slug for every artwork.');
+}
 
 export const categories: { name: string; count: number; bg: string; slug: string }[] = (() => {
   const seen = new Map<string, { name: string; count: number; bg: string; slug: string }>();

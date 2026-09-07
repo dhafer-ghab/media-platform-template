@@ -16,7 +16,7 @@ const visibleTags = work.tags.slice(0, maxTags);
 
 {
   variant === 'pin' ? (
-    <article class="work-pin">
+    <article class="work-pin" data-work-slug={work.slug}>
       <a class="work-pin__art-link" href={`/works/${work.slug}`} aria-label={work.title}>
         <div class="work-pin__art" style={`background:${work.bg};aspect-ratio:${work.ar};`} />
       </a>
@@ -41,7 +41,7 @@ const visibleTags = work.tags.slice(0, maxTags);
       </div>
     </article>
   ) : (
-    <a class={`work-card work-card--${variant}`} href={`/works/${work.slug}`}>
+    <a class={`work-card work-card--${variant}`} href={`/works/${work.slug}`} data-work-slug={work.slug}>
       <div class="work-card__art" style={`background:${work.bg};aspect-ratio:${work.ar};`} />
       {variant === 'spotlight' ? (
         <div class="work-card__title work-card__title--spotlight">{work.title}</div>

@@ -10,7 +10,7 @@ Procedurally generated CSS gradients stand in for the artwork images, and the
 
 ## Prerequisites
 
-Node.js 18.17+ (or 20+) and npm. **No global Astro install needed** — Astro
+Node.js 22.12+ and npm. **No global Astro install needed** — Astro
 is a project dev-dependency and is invoked via npm scripts.
 
 ### Install Node.js
@@ -59,7 +59,7 @@ Reads `package.json` and installs everything into `./node_modules`.
 
 ```
 npm run dev       # dev server at http://localhost:4321
-npm run build     # produce static site in ./dist
+npm run build     # produce the Node server and prerendered pages in ./dist
 npm run preview   # serve the built ./dist locally
 ```
 
@@ -92,8 +92,9 @@ verso/
 
 ## Notes on routing
 
-- All pages are statically prerendered at build time.
-- Astro 4 strips query strings from prerendered pages, so the **search** page
+- Gallery, discovery, authentication and directory pages are statically prerendered.
+  Actor, album and post pages are rendered by the Node adapter.
+- Prerendered pages do not receive query strings at request time, so the **search** page
   and the **category tag filter** do their filtering client-side: the page
   ships a JSON index (search) or `data-tags` attributes (category) and a small
   inline script reads `window.location.search` to filter the DOM. No server

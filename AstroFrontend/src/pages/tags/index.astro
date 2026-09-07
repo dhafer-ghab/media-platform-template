@@ -33,6 +33,15 @@ const jsonLd = [
     ],
   },
 ];
+const initialQuery = Astro.url.searchParams.get('q')?.trim() ?? '';
+const normalize = (value: string) =>
+  value.toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '').trim();
+const initialTerms = normalize(initialQuery).split(/\s+/).filter(Boolean);
+const visibleTags = galleryTags.filter((tag) => {
+  const search = normalize(`${tag.name} ${tag.description}`);
+  return initialTerms.every((term) => search.includes(term));
+});
+const visibleTagSlugs = new Set(visibleTags.map((tag) => tag.slug));
 ---
 
 <Layout title={title} description={description} canonicalPath="/tags" jsonLd={jsonLd}>
@@ -57,7 +66,7 @@ const jsonLd = [
           <div class="eyebrow">Directory</div>
           <h2 id="tag-directory-title" class="h-section">Find a tag</h2>
         </div>
-        <p class="directory__count" data-tag-count role="status" aria-live="polite">{galleryTags.length} tags</p>
+        <p class="directory__count" data-tag-count role="status" aria-live="polite">{visibleTags.length} {visibleTags.length === 1 ? 'tag' : 'tags'}</p>
       </div>
 
       <form class="tag-search" role="search" action="/tags" method="get" data-tag-search>
@@ -66,11 +75,11 @@ const jsonLd = [
           <path d="M21 21l-4.3-4.3"></path>
         </svg>
         <label class="tag-search__label" for="tag-query">Search the tag directory</label>
-        <input id="tag-query" type="search" name="q" placeholder="Search by theme, subject or style..." autocomplete="off" data-tag-query />
+        <input id="tag-query" type="search" name="q" value={initialQuery} placeholder="Search by theme, subject or style..." autocomplete="off" data-tag-query />
         <button type="button" class="tag-search__clear" data-tag-clear hidden>Clear</button>
       </form>
 
-      <p class="tag-empty" data-tag-empty hidden>
+      <p class="tag-empty" data-tag-empty hidden={visibleTags.length !== 0}>
         No tags match your search. Try a broader theme or style.
       </p>
 
@@ -78,7 +87,7 @@ const jsonLd = [
       {galleryTags.map((tag, index) => {
         const preview = artworksByTag(tag.name)[0];
         return (
-          <article class="tag-card" data-tag-card data-tag-name={tag.name.toLowerCase()} data-search={`${tag.name} ${tag.description}`.toLowerCase()}>
+          <article class="tag-card" hidden={!visibleTagSlugs.has(tag.slug)} data-tag-card data-tag-name={tag.name.toLowerCase()} data-search={`${tag.name} ${tag.description}`.toLowerCase()}>
             <a class="tag-card__image-link" href={`/tags/${tag.slug}`} aria-label={`Explore ${tag.name} art`}>
               <span class="tag-card__image" style={`background:${preview?.bg ?? 'var(--surface)'}`}></span>
               <span class="tag-card__number" aria-hidden="true">{String(index + 1).padStart(2, '0')}</span>

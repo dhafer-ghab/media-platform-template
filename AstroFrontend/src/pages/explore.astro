@@ -48,6 +48,11 @@ const filteredWorks = artworks
     if (initialSort === 'title') return a.title.localeCompare(b.title);
     return artworks.indexOf(a) - artworks.indexOf(b);
   });
+const visibleWorkIds = new Set(filteredWorks.map((work) => work.id));
+const renderedWorks = [
+  ...filteredWorks,
+  ...artworks.filter((work) => !visibleWorkIds.has(work.id)),
+];
 ---
 
 <Layout title={title} description={description} canonicalPath="/explore" jsonLd={jsonLd}>
@@ -110,9 +115,10 @@ const filteredWorks = artworks
       </p>
 
       <div class="works-grid" data-explore-grid>
-        {filteredWorks.map((work) => (
+        {renderedWorks.map((work) => (
           <div
             class="work-item"
+            hidden={!visibleWorkIds.has(work.id)}
             data-explore-work
             data-index={artworks.indexOf(work)}
             data-year={work.year}

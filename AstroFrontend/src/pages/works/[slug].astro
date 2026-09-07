@@ -3,6 +3,8 @@ import Layout from '@/layouts/Layout.astro';
 import WorkCard from '@/components/ui/WorkCard.astro';
 import { artworks, artists, categories, slugify } from '@/data/gallery';
 
+export const prerender = true;
+
 export function getStaticPaths() {
   return artworks.map((w) => ({ params: { slug: w.slug } }));
 }
@@ -18,17 +20,26 @@ const cat = categories.find((c) => c.name === work.category);
 const related = artworks
   .filter((x) => x.id !== work.id && (x.category === work.category || x.tags.some((t) => work.tags.includes(t))))
   .slice(0, 4);
+const description = `${work.title} (${work.year}) by ${work.artistName}. ${work.medium}, ${work.size}. View this ${work.category.toLowerCase()} work and related art on Verso.`;
+const canonicalPath = `/works/${work.slug}`;
+const workUrl = new URL(canonicalPath, Astro.site ?? Astro.url.origin).toString();
+const inquiryEmail = import.meta.env.PUBLIC_INQUIRY_EMAIL?.trim();
+const inquirySubject = `Inquiry about "${work.title}" by ${work.artistName}`;
+const inquiryBody = `Hello,\n\nI would like to inquire about "${work.title}" by ${work.artistName}.\n\nWork: ${workUrl}`;
+const inquiryHref = inquiryEmail
+  ? `mailto:${inquiryEmail}?subject=${encodeURIComponent(inquirySubject)}&body=${encodeURIComponent(inquiryBody)}`
+  : undefined;
 ---
 
-<Layout title={`${work.title} — ${work.artistName} — Verso`}>
-  <main class="container page">
-    <div class="crumbs">
+<Layout title={`${work.title} — ${work.artistName} — Verso`} description={description} canonicalPath={canonicalPath}>
+  <main class="container page" data-artwork-detail-slug={work.slug}>
+    <nav class="crumbs" aria-label="Breadcrumb">
       <a href="/">Index</a>
       <span class="crumb-sep">/</span>
       <a href={cat ? `/categories/${cat.slug}` : '/categories'}>{work.category}</a>
       <span class="crumb-sep">/</span>
-      <span class="crumbs__current">{work.title}</span>
-    </div>
+      <span class="crumbs__current" aria-current="page">{work.title}</span>
+    </nav>
 
     <div class="detail">
       <div class="detail__art" style={`background:${work.bg};aspect-ratio:${work.ar};`}></div>
@@ -50,7 +61,7 @@ const related = artworks
           ))}
         </div>
         <div class="detail__cta">
-          <button class="btn btn-primary">Inquire</button>
+          {inquiryHref && <a class="btn btn-primary" href={inquiryHref}>Inquire</a>}
           <button
             class="btn btn-ghost"
             data-save-toggle
@@ -69,6 +80,13 @@ const related = artworks
       </div>
     </section>
   </main>
+  <script>
+    import { recordArtworkViewOnce } from '@/lib/artworkViews';
+
+    const detail = document.querySelector<HTMLElement>('[data-artwork-detail-slug]');
+    const slug = detail?.dataset.artworkDetailSlug;
+    if (slug) void recordArtworkViewOnce(slug);
+  </script>
 </Layout>
 
 <style>

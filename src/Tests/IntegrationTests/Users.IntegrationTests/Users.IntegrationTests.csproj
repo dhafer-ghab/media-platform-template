@@ -20,6 +20,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\..\Host.WebApi\Host.WebApi.csproj" />
     <ProjectReference Include="..\..\..\Users.Infrastracture\Users.Infrastracture.csproj" />
   </ItemGroup>
 

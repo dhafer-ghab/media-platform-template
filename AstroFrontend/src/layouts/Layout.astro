@@ -42,7 +42,7 @@ const canonicalUrl = canonicalPath
     {canonicalUrl && <meta name="twitter:card" content="summary" />}
     {canonicalUrl && <meta name="twitter:title" content={title} />}
     {canonicalUrl && <meta name="twitter:description" content={description} />}
-    {jsonLd && <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />}
+    {jsonLd && <script is:inline type="application/ld+json" set:html={JSON.stringify(jsonLd)} />}
     <meta name="theme-color" content="#f5f2ec" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#14110e" media="(prefers-color-scheme: dark)" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />

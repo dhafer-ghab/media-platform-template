@@ -25,6 +25,16 @@ The frontend is built with Astro, providing a modern, high-performance web exper
 dotnet ef migrations add Initial --project .\src\Users.Infrastracture\Users.Infrastracture.csproj --startup-project .\src\Host.WebApi\Host.WebApi.csproj -o Migrations
 ```
 
+Artwork view analytics uses the same PostgreSQL database with an independent
+`analytics` schema and `__ArtworkViewsMigrations` history table.
+
+Production configuration must provide:
+
+- `ConnectionStrings__PostgreConnectionString`
+- `Cors__AllowedOrigins__0` for the frontend origin
+- `ReverseProxy__KnownProxies__0` for each trusted proxy
+- `ReverseProxy__ForwardLimit` when traffic crosses more than one trusted proxy
+
 start container without aspire (for persistent container aspire doesnt allow port mapping and persistent containers are acting up)
 ```bash
 docker run --name postgres -e POSTGRES_PASSWORD=password -p 5432:5432 -v ./postgres-data:/var/lib/postgresql postgres:18.3

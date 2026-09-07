@@ -10,6 +10,6 @@ const { PUBLIC_SITE_URL } = loadEnv(
 
 export default defineConfig({
   site: PUBLIC_SITE_URL ?? "http://localhost:4321",
-  output: "hybrid",
+  output: "server",
   adapter: node({ mode: "standalone" }),
 });

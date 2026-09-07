@@ -4,6 +4,8 @@ import WorkCard from '@/components/ui/WorkCard.astro';
 import CategoryCard from '@/components/ui/CategoryCard.astro';
 import { artworks, artists, categories, artworksByArtist } from '@/data/gallery';
 
+export const prerender = true;
+
 const heroIds = [0, 24, 12];
 const heroWorks = heroIds.map((i) => artworks[i]!);
 
@@ -11,8 +13,9 @@ const spotlightName = 'Mira Okafor';
 const spotlight = artists.find((a) => a.name === spotlightName) ?? artists[0]!;
 const spotlightWorks = artworksByArtist(spotlight.id).slice(0, 3);
 
-const newIds = [4, 20, 28, 8, 16, 32, 14, 2, 27, 18, 6, 35];
-const newWorks = newIds.map((i) => artworks[i]!).filter(Boolean);
+const newestWorks = [...artworks]
+  .sort((a, b) => b.addedAt.localeCompare(a.addedAt) || b.id - a.id)
+  .slice(0, 12);
 const homeDescription = 'Discover contemporary painters, photographers, printmakers, sculptors and digital artists through a curated index of artists and works.';
 const siteUrl = Astro.site ?? Astro.url.origin;
 const jsonLd = {
@@ -66,13 +69,29 @@ const jsonLd = {
       </div>
     </section>
 
-    <section class="container recent">
+    <section class="container recent" aria-labelledby="newest-title">
       <div class="recent__head">
-        <h2 class="h-section recent__h2">Selected works</h2>
+        <h2 id="newest-title" class="h-section recent__h2">Newest works</h2>
         <a class="recent__more" href="/explore">Explore all works →</a>
       </div>
       <div class="masonry">
-        {newWorks.map((w) => <WorkCard work={w} variant="pin" />)}
+        {newestWorks.map((w) => <WorkCard work={w} variant="pin" />)}
+      </div>
+    </section>
+
+    <section class="most-viewed" aria-labelledby="most-viewed-title" data-most-viewed-section hidden>
+      <div class="container most-viewed__inner">
+        <div class="recent__head">
+          <div>
+            <div class="eyebrow">Community attention</div>
+            <h2 id="most-viewed-title" class="h-section recent__h2">Most viewed</h2>
+          </div>
+          <span class="most-viewed__note">Ranked by recorded artwork views</span>
+        </div>
+        <div class="masonry" data-most-viewed-grid></div>
+        <template data-most-viewed-template>
+          {artworks.map((work) => <WorkCard work={work} variant="pin" />)}
+        </template>
       </div>
     </section>
 
@@ -83,6 +102,39 @@ const jsonLd = {
       </div>
     </section>
   </main>
+  <script>
+    import { getTopArtworkViews } from '@/lib/artworkViews';
+
+    const section = document.querySelector<HTMLElement>('[data-most-viewed-section]');
+    const grid = document.querySelector<HTMLElement>('[data-most-viewed-grid]');
+    const template = document.querySelector<HTMLTemplateElement>('[data-most-viewed-template]');
+    if (section && grid && template) {
+      const cards = new Map<string, Element>();
+      template.content.querySelectorAll<HTMLElement>('[data-work-slug]').forEach((card) => {
+        const slug = card.dataset.workSlug;
+        if (slug) cards.set(slug, card);
+      });
+
+      void getTopArtworkViews(12).then((ranked) => {
+        const fragment = document.createDocumentFragment();
+        let added = 0;
+        ranked.forEach((item) => {
+          const card = cards.get(item.slug);
+          if (!card) return;
+          const clone = card.cloneNode(true) as HTMLElement;
+          const count = document.createElement('span');
+          count.className = 'most-viewed__count';
+          count.textContent = `${item.viewCount.toLocaleString()} ${item.viewCount === 1 ? 'view' : 'views'}`;
+          clone.append(count);
+          fragment.append(clone);
+          added += 1;
+        });
+        if (added === 0) return;
+        grid.replaceChildren(fragment);
+        section.hidden = false;
+      });
+    }
+  </script>
 </Layout>
 
 <style>
@@ -226,6 +278,31 @@ const jsonLd = {
 
   .browse {
     padding: 0 0 clamp(50px, 7vw, 90px);
+  }
+  .most-viewed {
+    padding: clamp(44px, 6vw, 84px) 0;
+    background: var(--surface);
+    border-top: 1px solid var(--border-soft);
+    border-bottom: 1px solid var(--border-soft);
+  }
+  .most-viewed__note {
+    color: var(--faint);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .most-viewed .eyebrow {
+    margin-bottom: 8px;
+  }
+  :global(.most-viewed__count) {
+    display: inline-block;
+    margin-top: 12px;
+    color: var(--faint);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
   }
   .browse__h2 {
     font-size: clamp(24px, 3vw, 38px);
