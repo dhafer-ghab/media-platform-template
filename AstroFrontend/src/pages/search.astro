@@ -2,6 +2,8 @@
 import Layout from '@/layouts/Layout.astro';
 import { artworks, artists, artworksByArtist } from '@/data/gallery';
 
+export const prerender = true;
+
 const searchIndex = {
   works: artworks.map((w) => ({
     title: w.title,
@@ -47,7 +49,7 @@ const searchIndex = {
     </div>
   </main>
 
-  <script type="application/json" data-search-index set:html={JSON.stringify(searchIndex)} />
+  <script is:inline type="application/json" data-search-index set:html={JSON.stringify(searchIndex)} />
 
   <script>
     type WorkRow = {

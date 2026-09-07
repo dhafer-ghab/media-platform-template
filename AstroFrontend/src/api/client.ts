@@ -1,4 +1,8 @@
-const BASE_URL = import.meta.env.PUBLIC_API_BASE_URL ?? 'http://localhost:5000';
+const BASE_URL = import.meta.env.PUBLIC_API_BASE_URL?.replace(/\/$/, '');
+
+if (!BASE_URL) {
+  throw new Error('PUBLIC_API_BASE_URL is required.');
+}
 
 type RequestOptions = Omit<RequestInit, 'body'> & { body?: unknown };
 

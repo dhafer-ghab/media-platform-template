@@ -1,9 +1,8 @@
 using Host.WebApi;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.IdentityModel.Tokens;
+using Host.WebApi.Configuration;
 using Scalar.AspNetCore;
-using System.Text;
 using System.Text.Json.Serialization;
+using Users.Infrastracture;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -11,6 +10,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.AddServiceDefaults();
 
 builder.RegisterModules();
+builder.Services.AddHostConfiguration(builder.Configuration);
 
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
@@ -18,21 +18,12 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.ConfigureHttpJsonOptions(o => o.SerializerOptions.Converters.Add(new JsonStringEnumConverter(null, false)));
 
 
-var MyAllowSpecificOrigins = "_myAllowSpecificOrigins";
-
-builder.Services.AddCors(options =>
-{
-    options.AddPolicy(name: MyAllowSpecificOrigins, policy =>
-    {
-        policy.WithOrigins("http://localhost:4321") // get from config
-              .AllowAnyHeader()
-              .AllowAnyMethod();
-    });
-});
-
 var app = builder.Build();
+var databaseOptions = app.Services.ValidateHostConfiguration();
+app.Services.ValidateUsersConfiguration();
 
 app.MapDefaultEndpoints();
+app.UseForwardedHeaders();
 
 if (app.Environment.IsDevelopment())
 {
@@ -43,9 +34,10 @@ if (app.Environment.IsDevelopment())
     });
 }
 
-await app.ApplyMigrations();
+if (databaseOptions.ApplyMigrations == true)
+    await app.ApplyMigrations();
 
-app.UseCors(MyAllowSpecificOrigins);
+app.UseCors(CorsOptions.PublicFrontendPolicy);
 app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();

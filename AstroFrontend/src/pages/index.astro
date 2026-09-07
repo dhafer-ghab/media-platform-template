@@ -4,6 +4,8 @@ import WorkCard from '@/components/ui/WorkCard.astro';
 import CategoryCard from '@/components/ui/CategoryCard.astro';
 import { artworks, artists, categories, artworksByArtist } from '@/data/gallery';
 
+export const prerender = true;
+
 const heroIds = [0, 24, 12];
 const heroWorks = heroIds.map((i) => artworks[i]!);
 

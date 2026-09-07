@@ -1,25 +1,38 @@
-using Google.Protobuf.WellKnownTypes;
-
 var builder = DistributedApplication.CreateBuilder(args);
 
-
-
-var frontend = builder.AddNpmApp("frontend", "../../AstroFrontend", "start")
-    .WithExternalHttpEndpoints()
-    .WithUrl("http://localhost:4321");
-
-// start your own container with: docker run -d --name postgres -e POSTGRES_PASSWORD=pg_db_password -p 5432:5432 -v ./postgres-data:/var/lib/postgresql/data postgres
 var password = builder.AddParameter("password", secret: true);
+var jwtSecret = builder.AddParameter("jwt-secret", secret: true);
+var jwtIssuer = builder.AddParameter("jwt-issuer");
+var jwtAudience = builder.AddParameter("jwt-audience");
+var jwtExpirationMinutes = builder.AddParameter("jwt-expiration-minutes");
 
 var postgres = builder.AddPostgres("postgres", password: password)
     .WithPgAdmin()
-    .WithDataBindMount("./postgres-data")
-    .WithHostPort(5432);
+    .WithDataVolume();
 
-var database = postgres.AddDatabase("MainDb");
+var database = postgres.AddDatabase("PostgreConnectionString");
 
-builder.AddProject<Projects.Host_WebApi>("host-webapi").WithReference(postgres)
-    .WithUrl("scalar")
-    .WaitFor(postgres);
+var api = builder.AddProject<Projects.Host_WebApi>("host-webapi")
+    .WithHttpEndpoint(name: "http")
+    .WithReference(database)
+    .WithEnvironment("Jwt__Issuer", jwtIssuer)
+    .WithEnvironment("Jwt__Audience", jwtAudience)
+    .WithEnvironment("Jwt__SecretKey", jwtSecret)
+    .WithEnvironment("Jwt__ExpirationMinutes", jwtExpirationMinutes)
+    .WithEnvironment("Database__ApplyMigrations", "true")
+    .WaitFor(database);
+
+api.WithEnvironment("AllowedHosts", api.GetEndpoint("http").Property(EndpointProperty.Host));
+
+var frontend = builder.AddNpmApp("frontend", "../../AstroFrontend", "start")
+    .WithHttpEndpoint(env: "PORT", name: "http")
+    .WithExternalHttpEndpoints()
+    .WithReference(api)
+    .WithEnvironment("PUBLIC_API_BASE_URL", api.GetEndpoint("http"));
+
+frontend.WithEnvironment("PUBLIC_SITE_URL", frontend.GetEndpoint("http"));
+
+api.WithEnvironment("Cors__AllowedOrigins__0", frontend.GetEndpoint("http"))
+    .WithEnvironment("ReverseProxy__ForwardLimit", "1");
 
 builder.Build().Run();
