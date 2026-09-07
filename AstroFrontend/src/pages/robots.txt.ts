@@ -1,5 +1,5 @@
 import type { APIRoute } from 'astro';
-import { absoluteUrl } from '@/lib/routes';
+import { absoluteUrl, sitemapPath } from '@/lib/routes';
 
 // Served dynamically so the Sitemap line is built from the configured origin
 // rather than a hardcoded domain that would be wrong in every environment
@@ -11,7 +11,7 @@ export const GET: APIRoute = ({ site }) => {
     'User-agent: *',
     'Allow: /',
     '',
-    `Sitemap: ${absoluteUrl('/sitemap.xml', site)}`,
+    `Sitemap: ${absoluteUrl(sitemapPath(), site)}`,
     '',
   ].join('\n');
 

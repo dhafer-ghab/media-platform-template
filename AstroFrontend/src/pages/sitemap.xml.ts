@@ -1,56 +1,51 @@
 import type { APIRoute } from 'astro';
-import { actors } from '@/data/media';
-import { actorPath, absoluteUrl } from '@/lib/routes';
+import { catalogApi, type PagedResult } from '@/api/catalog';
+import { actorPath, actorsPath, albumPath, absoluteUrl, explorePath, homePath, tagPath, tagsPath } from '@/lib/routes';
 
 export const prerender = false;
 
-/** Sitemaps are capped at 50,000 URLs / 50 MB uncompressed. Past that this
- *  has to become a sitemap index pointing at shards. */
 const MAX_URLS = 50_000;
-
-const escapeXml = (s: string) =>
-  s
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&apos;');
-
+const PAGE_SIZE = 100;
 type Entry = { loc: string; lastmod?: string };
 
-export const GET: APIRoute = ({ site }) => {
-  const entries: Entry[] = [
-    { loc: absoluteUrl('/', site) },
+const escapeXml = (value: string) =>
+  value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;');
 
-    // Actor profiles. Page 1 only — paginated pages are self-canonical and
-    // reachable via rel=next, and listing them here would bury the entry
-    // points. Album URLs join this list when that route exists.
-    ...actors.map((a) => ({
-      loc: absoluteUrl(actorPath(a.slug), site),
-      lastmod: a.updatedAt,
-    })),
+async function allPages<T>(load: (page: number) => Promise<PagedResult<T>>): Promise<T[]> {
+  const first = await load(1);
+  const items = [...first.items];
+  for (let page = 2; page <= first.totalPages && items.length < MAX_URLS; page += 1) {
+    items.push(...(await load(page)).items);
+  }
+  return items;
+}
+
+export const GET: APIRoute = async ({ site, request }) => {
+  const [actors, albums, tags] = await Promise.all([
+    allPages((page) => catalogApi.actors({ page, pageSize: PAGE_SIZE }, { signal: request.signal })),
+    allPages((page) => catalogApi.discovery({ page, pageSize: PAGE_SIZE }, { signal: request.signal })),
+    catalogApi.tags({ signal: request.signal }),
+  ]);
+
+  const entries: Entry[] = [
+    { loc: absoluteUrl(homePath(), site) },
+    { loc: absoluteUrl(explorePath(), site) },
+    { loc: absoluteUrl(actorsPath(), site) },
+    { loc: absoluteUrl(tagsPath(), site) },
+    ...tags.map((tag) => ({ loc: absoluteUrl(tagPath(tag), site) })),
+    ...actors.map((actor) => ({ loc: absoluteUrl(actorPath(actor.slug), site), lastmod: actor.updatedAt })),
+    ...albums.map((album) => ({ loc: absoluteUrl(albumPath(album.actorSlug, album.slug), site), lastmod: album.updatedAt })),
   ];
 
-  const body =
-    '<?xml version="1.0" encoding="UTF-8"?>\n' +
-    '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' +
-    entries
-      .slice(0, MAX_URLS)
-      .map(
-        (e) =>
-          '  <url>\n' +
-          `    <loc>${escapeXml(e.loc)}</loc>\n` +
-          (e.lastmod ? `    <lastmod>${e.lastmod}</lastmod>\n` : '') +
-          '  </url>\n',
-      )
-      .join('') +
-    '</urlset>\n';
+  const body = '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' +
+    entries.slice(0, MAX_URLS).map((entry) =>
+      `  <url>\n    <loc>${escapeXml(entry.loc)}</loc>\n${entry.lastmod ? `    <lastmod>${entry.lastmod}</lastmod>\n` : ''}  </url>\n`,
+    ).join('') + '</urlset>\n';
 
   return new Response(body, {
     headers: {
       'Content-Type': 'application/xml; charset=utf-8',
-      'Cache-Control':
-        'public, max-age=0, s-maxage=3600, stale-while-revalidate=86400',
+      'Cache-Control': 'public, max-age=0, s-maxage=3600, stale-while-revalidate=86400',
     },
   });
 };

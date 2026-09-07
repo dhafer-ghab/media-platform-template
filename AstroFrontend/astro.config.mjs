@@ -13,8 +13,8 @@ if (isBuild && !PUBLIC_SITE_URL) {
   throw new Error('PUBLIC_SITE_URL is required for production builds.');
 }
 
-if (isBuild && !PUBLIC_API_BASE_URL) {
-  throw new Error('PUBLIC_API_BASE_URL is required for production builds.');
+if (!PUBLIC_API_BASE_URL) {
+  throw new Error('PUBLIC_API_BASE_URL is required.');
 }
 
 for (const [name, value] of Object.entries({ PUBLIC_SITE_URL, PUBLIC_API_BASE_URL })) {

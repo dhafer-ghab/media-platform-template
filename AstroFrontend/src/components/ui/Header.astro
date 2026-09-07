@@ -3,18 +3,20 @@ interface Props {
   initialQ?: string;
 }
 const { initialQ = '' } = Astro.props;
+import { actorsPath, explorePath, homePath, loginPath, tagsPath } from '@/lib/routes';
 ---
 
 <header class="site-header">
   <div class="container site-header__inner">
-    <a href="/" class="brand">VERSO</a>
+    <a href={homePath()} class="brand">VERSO</a>
     <nav class="nav">
-      <a href="/">Discover</a>
-      <a href="/artists">Artists</a>
-      <a href="/categories">Categories</a>
-      <a href="/login" id="auth-link">Login</a>
+      <a href={homePath()}>Discover</a>
+      <a href={explorePath()}>Explore</a>
+      <a href={actorsPath()}>Creators</a>
+      <a href={tagsPath()}>Tags</a>
+      <a href={loginPath()} id="auth-link">Login</a>
     </nav>
-    <form class="search" role="search" action="/search" method="get" data-search-form>
+    <form class="search" role="search" action={explorePath()} method="get" data-search-form>
       <svg class="search__icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
         <circle cx="11" cy="11" r="7"></circle>
         <path d="M21 21l-4.3-4.3"></path>
@@ -22,6 +24,7 @@ const { initialQ = '' } = Astro.props;
       <input
         type="search"
         name="q"
+        aria-label="Search catalog"
         value={initialQ}
         placeholder="Search artists, works, tags"
         autocomplete="off"
@@ -53,6 +56,8 @@ const { initialQ = '' } = Astro.props;
 </header>
 
 <script>
+  import { homePath } from '@/lib/routes';
+
   function setTheme(theme: 'light' | 'dark', persist = true): void {
     document.documentElement.setAttribute('data-theme', theme);
     if (persist) {
@@ -111,7 +116,7 @@ const { initialQ = '' } = Astro.props;
         authLink.addEventListener('click', (e) => {
           e.preventDefault();
           localStorage.removeItem('authToken');
-          window.location.href = '/';
+          window.location.href = homePath();
         });
       }
     });

@@ -1,39 +1,49 @@
-// Every application URL is built here. Nothing else constructs paths, so a
-// routing change is a single-file edit and internal links cannot drift apart.
+type BrowseQuery = { q?: string; tag?: string; page?: number };
 
-const ACTORS = '/actors';
-
-/** Page 1 never carries ?page=1. That would create a second URL for identical
- *  content, competing with the canonical and splitting its signals. */
-function withPage(path: string, page: number): string {
-  return page > 1 ? `${path}?page=${page}` : path;
+function withQuery(path: string, values: Record<string, string | number | undefined>): string {
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(values)) {
+    if (value !== undefined && value !== '' && !(key === 'page' && value === 1)) {
+      params.set(key, String(value));
+    }
+  }
+  const query = params.toString();
+  return query ? `${path}?${query}` : path;
 }
 
+const segment = (value: string) => encodeURIComponent(value);
+
+export const homePath = (page = 1) => withQuery('/', { page });
+export const explorePath = ({ q, tag, page = 1 }: BrowseQuery = {}) =>
+  withQuery('/explore', { q, tag, page });
+export const searchPath = (q = '') => withQuery('/search', { q });
+export const tagsPath = () => '/tags';
+export const actorsPath = (page = 1) => withQuery('/actors', { page });
+export const tagPath = (tag: string, page = 1) =>
+  withQuery(`/tags/${segment(tag)}`, { page });
+export const loginPath = () => '/login';
+export const signupPath = () => '/signup';
+export const sitemapPath = () => '/sitemap.xml';
+export const legacyArtistsPath = (slug?: string) => slug ? `/artists/${segment(slug)}` : '/artists';
+export const legacyCategoriesPath = (slug?: string) => slug ? `/categories/${segment(slug)}` : '/categories';
+export const legacyWorkPath = (slug: string) => `/works/${segment(slug)}`;
+
 export function actorPath(slug: string, page = 1): string {
-  return withPage(`${ACTORS}/${slug}`, page);
+  return withQuery(`/actors/${segment(slug)}`, { page });
 }
 
 export function albumPath(actorSlug: string, albumSlug: string, page = 1): string {
-  return withPage(`${ACTORS}/${actorSlug}/a/${albumSlug}`, page);
+  return withQuery(`/actors/${segment(actorSlug)}/a/${segment(albumSlug)}`, { page });
 }
 
-export function postPath(
-  actorSlug: string,
-  albumSlug: string,
-  postId: number | string,
-): string {
-  return `${ACTORS}/${actorSlug}/a/${albumSlug}/p/${postId}`;
+export function postPath(actorSlug: string, albumSlug: string, postId: string): string {
+  return `/actors/${segment(actorSlug)}/a/${segment(albumSlug)}/p/${segment(postId)}`;
 }
 
-/**
- * Absolute URL for canonical, og:url and sitemap entries.
- * Throws rather than silently emitting a relative canonical — a missing origin
- * is a deploy misconfiguration that should fail loudly, not degrade quietly.
- */
 export function absoluteUrl(path: string, site: URL | undefined): string {
   if (!site) {
     throw new Error(
-      'astro.config `site` is not set — canonical URLs, og:url and the sitemap all require an absolute origin.',
+      'astro.config `site` is not set; canonical URLs, og:url and the sitemap require an absolute origin.',
     );
   }
   return new URL(path, site).toString();

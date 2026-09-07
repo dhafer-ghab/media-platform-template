@@ -1,11 +1,12 @@
 ---
-import type { Album } from '@/data/media';
+import type { AlbumDetails, AlbumSummary, DiscoveryItem } from '@/api/catalog';
 import { albumPath } from '@/lib/routes';
 import { imageUrl, imageSrcSet } from '@/lib/images';
 import { NEW_BADGE_DAYS } from '@/config/site';
 
 interface Props {
-  album: Album;
+  album: AlbumSummary | AlbumDetails | DiscoveryItem;
+  actorSlug?: string;
   /** True for the first row. Drives eager loading and fetchpriority for LCP. */
   eager?: boolean;
   /** Must match the grid's actual column behaviour or the browser picks wrong. */
@@ -14,6 +15,7 @@ interface Props {
 
 const {
   album,
+  actorSlug,
   eager = false,
   sizes = '(min-width: 1100px) 25vw, (min-width: 800px) 33vw, (min-width: 520px) 50vw, 100vw',
 } = Astro.props;
@@ -25,16 +27,20 @@ const CARD_W = 600;
 const CARD_H = 800;
 const WIDTHS = [300, 420, 600, 840];
 
-const ref = { key: album.coverKey, id: album.id };
+const ref = { key: album.coverStorageKey, id: album.id };
 const src = imageUrl(ref, { width: CARD_W, height: CARD_H, fit: 'cover' });
 const srcset = imageSrcSet(ref, WIDTHS, { aspectRatio: CARD_W / CARD_H, fit: 'cover' });
 
-const href = albumPath(album.actorSlug, album.slug);
+const ownerSlug = actorSlug ?? ('actorSlug' in album ? album.actorSlug : '');
+if (!ownerSlug) throw new Error(`Actor slug is required for album ${album.id}.`);
+const href = albumPath(ownerSlug, album.slug);
 
 const ageDays = Math.floor((Date.now() - Date.parse(album.publishedAt)) / 86_400_000);
 const isNew = ageDays <= NEW_BADGE_DAYS;
-const hasVideo = album.videoCount > 0;
-const newLabel = album.isSeries ? 'New episodes' : 'New';
+const hasCounts = 'videoCount' in album;
+const hasVideo = hasCounts && album.videoCount > 0;
+const isSeries = 'isSeries' in album && album.isSeries;
+const newLabel = isSeries ? 'New episodes' : 'New';
 ---
 
 <a class="albcard" href={href}>
@@ -45,7 +51,7 @@ const newLabel = album.isSeries ? 'New episodes' : 'New';
     sizes={srcset ? sizes : undefined}
     width={CARD_W}
     height={CARD_H}
-    alt={album.coverAlt}
+    alt={album.coverAltText}
     loading={eager ? 'eager' : 'lazy'}
     decoding={eager ? 'sync' : 'async'}
     fetchpriority={eager ? 'high' : 'auto'}
@@ -53,9 +59,9 @@ const newLabel = album.isSeries ? 'New episodes' : 'New';
 
   <span class="albscrim" aria-hidden="true"></span>
 
-  {(album.isSeries || isNew) && (
+  {(isSeries || isNew) && (
     <span class="albbadges">
-      {album.isSeries && <span class="badge badge--series">Series</span>}
+      {isSeries && <span class="badge badge--series">Series</span>}
       {isNew && <span class="badge badge--new">{newLabel}</span>}
     </span>
   )}
@@ -76,7 +82,7 @@ const newLabel = album.isSeries ? 'New episodes' : 'New';
           <circle cx="9" cy="11" r="2" />
           <path d="m21 17-5-5-4 4-2-2-4 4" />
         </svg>
-        {album.photoCount}
+        {hasCounts ? album.photoCount : 'Album'}
       </span>
       {hasVideo && (
         <span class="cnt">

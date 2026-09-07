@@ -1,13 +1,13 @@
 ---
-import type { Actor } from '@/data/media';
+import type { ActorSummary } from '@/api/catalog';
 import { actorPath } from '@/lib/routes';
 import { imageUrl } from '@/lib/images';
 
-interface Props { actor: Actor; }
+interface Props { actor: ActorSummary; }
 const { actor } = Astro.props;
 
 const AV = 148; // 74px at 2x
-const src = imageUrl({ key: actor.avatarKey, id: actor.id }, { width: AV, height: AV, fit: 'cover' });
+const src = imageUrl({ key: actor.avatarStorageKey, id: actor.id }, { width: AV, height: AV, fit: 'cover' });
 ---
 
 <a class="relcard" href={actorPath(actor.slug)}>

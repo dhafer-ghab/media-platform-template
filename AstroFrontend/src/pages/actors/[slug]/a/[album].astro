@@ -5,38 +5,39 @@ import MediaLayout from '@/layouts/MediaLayout.astro';
 import Breadcrumbs from '@/components/media/Breadcrumbs.astro';
 import MediaItem from '@/components/media/MediaItem.astro';
 import AlbumCard from '@/components/media/AlbumCard.astro';
-import AdSlot from '@/components/media/AdSlot.astro';
 import Pagination from '@/components/media/Pagination.astro';
-import {
-  getActorBySlug, getAlbumBySlug, albumsByActor, postsByAlbum,
-  paginate, lastModified, type Post,
-} from '@/data/media';
-import { actorPath, albumPath, absoluteUrl } from '@/lib/routes';
-import { imageUrl } from '@/lib/images';
+import { ApiError } from '@/api/client';
+import { catalogApi } from '@/api/catalog';
+import { actorPath, albumPath, absoluteUrl, homePath, tagPath } from '@/lib/routes';
+import { hasRealAssets, imageUrl } from '@/lib/images';
+import { applyCatalogCache, pageParam, redirectPastLastPage } from '@/lib/http';
+import { posterUrl, videoUrl } from '@/lib/video';
 import { clamp } from '@/lib/text';
 import { POSTS_PER_PAGE, siteName } from '@/config/site';
 
 const { slug, album: albumSlug } = Astro.params;
-const actor = slug ? getActorBySlug(slug) : undefined;
-const album = actor && albumSlug ? getAlbumBySlug(actor.slug, albumSlug) : undefined;
-if (!actor || !album) return new Response(null, { status: 404 });
-
-const allPosts = postsByAlbum(album.id);
-const requested = Number(Astro.url.searchParams.get('page') ?? '1');
-const result = paginate(allPosts, requested, POSTS_PER_PAGE);
-
-// ── HTTP caching ───────────────────────────────────────────────
-const lm = lastModified([album, ...allPosts]);
-const headers: Record<string, string> = {
-  'Cache-Control': 'public, max-age=0, s-maxage=300, stale-while-revalidate=600',
-};
-if (lm) headers['Last-Modified'] = new Date(lm).toUTCString();
-
-const ims = Astro.request.headers.get('if-modified-since');
-if (ims && lm && Date.parse(ims) >= Date.parse(lm)) {
-  return new Response(null, { status: 304, headers });
+if (!slug || !albumSlug) return new Response(null, { status: 404 });
+const requested = pageParam(Astro.url);
+if (requested === null) return new Response('Invalid page.', { status: 400 });
+let actor;
+let album;
+let result;
+let albums;
+try {
+  [actor, album, result, albums] = await Promise.all([
+    catalogApi.actor(slug, { signal: Astro.request.signal }),
+    catalogApi.album(slug, albumSlug, { signal: Astro.request.signal }),
+    catalogApi.albumPosts(slug, albumSlug, { page: requested, pageSize: POSTS_PER_PAGE }, { signal: Astro.request.signal }),
+    catalogApi.actorAlbums(slug, { page: 1, pageSize: 5 }, { signal: Astro.request.signal }),
+  ]);
+} catch (error) {
+  if (error instanceof ApiError && error.status === 404) return new Response(null, { status: 404 });
+  throw error;
 }
-for (const [k, v] of Object.entries(headers)) Astro.response.headers.set(k, v);
+
+const pageRedirect = redirectPastLastPage(requested, result.totalPages, (page) => albumPath(actor.slug, album.slug, page));
+if (pageRedirect) return pageRedirect;
+applyCatalogCache(Astro.response);
 
 // ── Presentation ───────────────────────────────────────────────
 const onFirst = result.page === 1;
@@ -55,42 +56,38 @@ const description = clamp(
 
 const path = albumPath(actor.slug, album.slug, result.page);
 
-const coverSrc = imageUrl({ key: album.coverKey, id: album.id }, { width: 1200, height: 900, fit: 'cover' });
+const coverSrc = imageUrl({ key: album.coverStorageKey, id: album.id }, { width: 1200, height: 900, fit: 'cover' });
 const realCover = !coverSrc.startsWith('data:') ? absoluteUrl(coverSrc, Astro.site) : null;
 
-const avatarSrc = imageUrl({ key: actor.avatarKey, id: actor.id }, { width: 72, height: 72, fit: 'cover' });
+const avatarSrc = imageUrl({ key: actor.avatarStorageKey, id: actor.id }, { width: 72, height: 72, fit: 'cover' });
 
-// Ad after every fourth item, never trailing.
-type Cell = { kind: 'post'; post: Post } | { kind: 'ad' };
-const cells: Cell[] = [];
-result.items.forEach((post, i) => {
-  cells.push({ kind: 'post', post });
-  if ((i + 1) % 4 === 0 && i < result.items.length - 1) cells.push({ kind: 'ad' });
-});
-
-const related = albumsByActor(actor.id).filter((a) => a.id !== album.id).slice(0, 4);
+const related = albums.items.filter((item) => item.id !== album.id).slice(0, 4);
 
 const crumbs = [
-  { label: siteName, href: '/' },
+  { label: siteName, href: homePath() },
   { label: actor.displayName, href: actorPath(actor.slug) },
   { label: album.title },
 ];
 
-// associatedMedia is only emitted with real assets — a data-URI contentUrl is
-// invalid structured data and worse than omitting the property.
-const media = realCover
-  ? allPosts.map((p) => ({
-      '@type': p.mediaType === 'video' ? 'VideoObject' : 'ImageObject',
-      name: p.altText,
-      description: p.caption ?? p.altText,
-      uploadDate: p.publishedAt,
-      contentUrl: absoluteUrl(postPathFor(p), Astro.site),
-    }))
-  : undefined;
-
-function postPathFor(p: Post) {
-  return `${albumPath(actor!.slug, album!.slug)}/p/${p.id}`;
-}
+const media = result.items.flatMap((post) => {
+  const ref = { key: post.storageKey, id: post.id };
+  const isVideo = post.mediaType === 'video';
+  const content = isVideo
+    ? videoUrl(ref)
+    : hasRealAssets(ref)
+      ? imageUrl(ref, { width: post.width, height: post.height, fit: 'contain' })
+      : null;
+  if (!content) return [];
+  const poster = isVideo ? posterUrl(ref, { width: 1200, height: Math.round(1200 / post.aspectRatio) }) : null;
+  return [{
+    '@type': isVideo ? 'VideoObject' : 'ImageObject',
+    name: post.altText,
+    description: post.caption ?? post.altText,
+    uploadDate: post.publishedAt,
+    contentUrl: absoluteUrl(content, Astro.site),
+    ...(poster ? { thumbnailUrl: absoluteUrl(poster, Astro.site) } : {}),
+  }];
+});
 
 const jsonLd = [
   {
@@ -102,7 +99,7 @@ const jsonLd = [
     datePublished: album.publishedAt,
     dateModified: album.updatedAt,
     author: { '@type': 'Person', name: actor.displayName, url: absoluteUrl(actorPath(actor.slug), Astro.site) },
-    ...(media ? { associatedMedia: media } : {}),
+    ...(media.length ? { associatedMedia: media } : {}),
   },
   {
     '@context': 'https://schema.org',
@@ -122,7 +119,7 @@ const jsonLd = [
   description={description}
   path={path}
   ogType="article"
-  image={realCover ? { url: realCover, width: 1200, height: 900, alt: album.coverAlt } : null}
+  image={realCover ? { url: realCover, width: 1200, height: 900, alt: album.coverAltText } : null}
   prevPath={result.hasPrev ? albumPath(actor.slug, album.slug, result.page - 1) : null}
   nextPath={result.hasNext ? albumPath(actor.slug, album.slug, result.page + 1) : null}
   jsonLd={jsonLd}
@@ -155,17 +152,13 @@ const jsonLd = [
       ) : (
         <>
           <div class="feed">
-            {cells.map((cell, i) =>
-              cell.kind === 'ad' ? (
-                <AdSlot ratio="3 / 2" />
-              ) : (
-                <MediaItem
-                  post={cell.post}
-                  actorSlug={actor.slug}
-                  albumSlug={album.slug}
-                  eager={result.page === 1 && i === 0}
-                />
-              ),
+            {result.items.map((post, i) =>
+              <MediaItem
+                post={post}
+                actorSlug={actor.slug}
+                albumSlug={album.slug}
+                eager={result.page === 1 && i === 0}
+              />
             )}
           </div>
 
@@ -184,7 +177,7 @@ const jsonLd = [
         <section class="alb-tags">
           <h2 class="alb-h2">Tags</h2>
           <ul class="taglist">
-            {album.tags.map((t) => <li class="tag">{t}</li>)}
+            {album.tags.map((t) => <li><a class="tag" href={tagPath(t)}>{t}</a></li>)}
           </ul>
         </section>
       )}
@@ -193,7 +186,7 @@ const jsonLd = [
         <section class="alb-related">
           <h2 class="alb-h2">More from {actor.displayName}</h2>
           <div class="relgrid">
-            {related.map((a) => <AlbumCard album={a} />)}
+            {related.map((a) => <AlbumCard album={a} actorSlug={actor.slug} />)}
           </div>
         </section>
       )}

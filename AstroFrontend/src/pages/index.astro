@@ -1,220 +1,89 @@
 ---
-import Layout from '@/layouts/Layout.astro';
-import WorkCard from '@/components/ui/WorkCard.astro';
-import CategoryCard from '@/components/ui/CategoryCard.astro';
-import { artworks, artists, categories, artworksByArtist } from '@/data/gallery';
+export const prerender = false;
 
-export const prerender = true;
+import { catalogApi } from '@/api/catalog';
+import AlbumCard from '@/components/media/AlbumCard.astro';
+import ActorCard from '@/components/media/ActorCard.astro';
+import Pagination from '@/components/media/Pagination.astro';
+import MediaLayout from '@/layouts/MediaLayout.astro';
+import { applyCatalogCache, pageParam, redirectPastLastPage } from '@/lib/http';
+import { explorePath, homePath, tagsPath } from '@/lib/routes';
 
-const heroIds = [0, 24, 12];
-const heroWorks = heroIds.map((i) => artworks[i]!);
+const page = pageParam(Astro.url);
+if (page === null) return new Response('Invalid page.', { status: 400 });
 
-const spotlightName = 'Mira Okafor';
-const spotlight = artists.find((a) => a.name === spotlightName) ?? artists[0]!;
-const spotlightWorks = artworksByArtist(spotlight.id).slice(0, 3);
+const [discovery, actors] = await Promise.all([
+  catalogApi.discovery({ page, pageSize: 12 }, { signal: Astro.request.signal }),
+  catalogApi.actors({ page: 1, pageSize: 8 }, { signal: Astro.request.signal }),
+]);
+const pageRedirect = redirectPastLastPage(page, discovery.totalPages, homePath);
+if (pageRedirect) return pageRedirect;
+applyCatalogCache(Astro.response);
 
-const newIds = [4, 20, 28, 8, 16, 32, 14, 2, 27, 18, 6, 35];
-const newWorks = newIds.map((i) => artworks[i]!).filter(Boolean);
+const path = homePath(discovery.page);
+const title = discovery.page === 1 ? 'Discover contemporary visual artists' : `Discover, page ${discovery.page}`;
+const description = 'Discover a curated catalog of contemporary visual artists, albums, photography, and video, selected for thoughtful browsing.';
 ---
 
-<Layout>
+<MediaLayout
+  title={title}
+  description={description}
+  path={path}
+  prevPath={discovery.hasPrev ? homePath(discovery.page - 1) : null}
+  nextPath={discovery.hasNext ? homePath(discovery.page + 1) : null}
+  noindex={discovery.items.length === 0}
+>
   <main>
     <section class="container hero">
-      <div class="eyebrow">Index № 04 — Summer 2026</div>
-      <h1 class="h-display hero__h1">An index of contemporary visual artists.</h1>
-      <p class="hero__lede">
-        Verso is a slow place to discover painters, photographers, printmakers and digital artists from around the world — one work at a time.
-      </p>
-      <div class="hero__ctas">
-        <a class="btn btn-primary" href="/artists">Browse artists</a>
-        <a class="btn btn-ghost" href="/categories">Explore categories</a>
+      <p class="eyebrow">The catalog</p>
+      <h1>An index of contemporary visual artists.</h1>
+      <p class="lede">A slow place to discover photography, moving image, and visual stories from creators around the world.</p>
+      <div class="actions">
+        <a class="primary" href={explorePath()}>Explore the catalog</a>
+        <a class="secondary" href={tagsPath()}>Browse tags</a>
       </div>
     </section>
 
-    <section class="container hero-works">
-      <div class="hero-works__grid">
-        {heroWorks.map((w) => <WorkCard work={w} variant="pin" />)}
-      </div>
-    </section>
-
-    <section class="spotlight">
-      <div class="container spotlight__inner">
-        <div class="eyebrow">Artist in focus</div>
-        <div class="spotlight__grid">
-          <div>
-            <h2 class="spotlight__name">
-              <a href={`/artists/${spotlight.slug}`}>{spotlight.name}</a>
-            </h2>
-            <div class="spotlight__meta">
-              {spotlight.location} — {spotlight.disciplines}
-            </div>
-            <p class="spotlight__bio">{spotlight.bio}</p>
-            <a class="btn btn-ghost btn-sm" href={`/artists/${spotlight.slug}`}>View profile</a>
-          </div>
-          <div class="spotlight__works">
-            {spotlightWorks.map((w) => <WorkCard work={w} variant="spotlight" />)}
-          </div>
-        </div>
-      </div>
-    </section>
+    {actors.items.length > 0 && discovery.page === 1 && (
+      <section class="container creators">
+        <div class="section-head"><h2>Featured creators</h2><a href={explorePath()}>View catalog</a></div>
+        <div class="actor-grid">{actors.items.map((actor) => <ActorCard actor={actor} />)}</div>
+      </section>
+    )}
 
     <section class="container recent">
-      <div class="recent__head">
-        <h2 class="h-section recent__h2">Recently added</h2>
-        <a class="recent__more" href="/artists">All artists →</a>
-      </div>
-      <div class="masonry">
-        {newWorks.map((w) => <WorkCard work={w} variant="pin" />)}
-      </div>
-    </section>
-
-    <section class="container browse">
-      <h2 class="h-section browse__h2">Browse by category</h2>
-      <div class="cat-grid">
-        {categories.map((c) => <CategoryCard name={c.name} count={c.count} bg={c.bg} slug={c.slug} />)}
-      </div>
+      <div class="section-head"><h2>Recently added</h2><span>{discovery.totalItems} albums</span></div>
+      {discovery.items.length > 0 ? (
+        <div class="album-grid">{discovery.items.map((album, index) => <AlbumCard album={album} eager={page === 1 && index < 4} />)}</div>
+      ) : (
+        <p class="empty">No catalog entries are available on this page.</p>
+      )}
+      <Pagination
+        page={discovery.page}
+        totalPages={discovery.totalPages}
+        hasPrev={discovery.hasPrev}
+        hasNext={discovery.hasNext}
+        hrefFor={homePath}
+        label="Catalog pages"
+      />
     </section>
   </main>
-</Layout>
+</MediaLayout>
 
 <style>
-  .hero {
-    padding: clamp(44px, 8vw, 104px) 0 clamp(28px, 4vw, 52px);
-  }
-  .hero__h1 {
-    font-size: clamp(40px, 7.4vw, 104px);
-    margin: 0.22em 0 0;
-    max-width: 16ch;
-    text-wrap: balance;
-  }
-  .hero__lede {
-    max-width: 52ch;
-    color: var(--muted);
-    font-size: clamp(15px, 1.4vw, 18px);
-    line-height: 1.62;
-    margin: 28px 0 0;
-  }
-  .hero__ctas {
-    display: flex;
-    gap: 14px;
-    margin-top: 32px;
-    flex-wrap: wrap;
-  }
-
-  .hero-works {
-    padding-bottom: clamp(40px, 6vw, 80px);
-  }
-  .hero-works__grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-    gap: 28px;
-  }
-
-  .spotlight {
-    background: var(--surface);
-    border-top: 1px solid var(--border-soft);
-    border-bottom: 1px solid var(--border-soft);
-  }
-  .spotlight__inner {
-    padding: clamp(40px, 6vw, 84px) 0;
-  }
-  .spotlight__grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: clamp(24px, 4vw, 56px);
-    margin-top: 22px;
-    align-items: start;
-  }
-  .spotlight__name {
-    font-family: 'Spectral', serif;
-    font-weight: 400;
-    font-size: clamp(30px, 4.2vw, 54px);
-    line-height: 1.02;
-    margin: 0;
-  }
-  .spotlight__name a {
-    color: var(--text);
-  }
-  .spotlight__meta {
-    font-size: 12px;
-    font-weight: 500;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: var(--muted);
-    margin-top: 13px;
-  }
-  .spotlight__bio {
-    color: var(--text-3);
-    font-size: clamp(15px, 1.4vw, 18px);
-    line-height: 1.6;
-    margin: 20px 0 0;
-    max-width: 42ch;
-  }
-  .spotlight__bio + .btn {
-    margin-top: 26px;
-  }
-  .spotlight__works {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 14px;
-  }
-
-  .recent {
-    padding: clamp(44px, 6vw, 84px) 0;
-  }
-  .recent__head {
-    display: flex;
-    justify-content: space-between;
-    align-items: baseline;
-    margin-bottom: 30px;
-    flex-wrap: wrap;
-    gap: 10px;
-  }
-  .recent__h2 {
-    font-size: clamp(24px, 3vw, 38px);
-  }
-  .recent__more {
-    font-size: 12px;
-    font-weight: 600;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: var(--muted);
-    transition: color 0.2s;
-  }
-  .recent__more:hover {
-    color: var(--accent);
-  }
-
-  .masonry {
-    column-count: 2;
-    column-gap: 22px;
-  }
-  @media (min-width: 640px) {
-    .masonry {
-      column-count: 3;
-    }
-  }
-  @media (min-width: 980px) {
-    .masonry {
-      column-count: 4;
-    }
-  }
-  @media (min-width: 1280px) {
-    .masonry {
-      column-count: 5;
-    }
-  }
-
-  .browse {
-    padding: 0 0 clamp(50px, 7vw, 90px);
-  }
-  .browse__h2 {
-    font-size: clamp(24px, 3vw, 38px);
-    margin: 0 0 28px;
-  }
-  .cat-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-    gap: 26px;
-  }
+  .hero { padding: clamp(54px, 9vw, 120px) 0 clamp(42px, 7vw, 84px); }
+  .eyebrow { margin: 0; color: var(--accent); font-size: 11px; font-weight: 700; letter-spacing: .18em; text-transform: uppercase; }
+  h1 { max-width: 12ch; margin: 12px 0 0; font: 500 clamp(42px, 7.5vw, 100px)/.98 var(--font-serif); letter-spacing: -.035em; text-wrap: balance; }
+  .lede { max-width: 54ch; margin: 28px 0 0; color: var(--text-2); font-size: clamp(16px, 1.5vw, 19px); line-height: 1.65; }
+  .actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 30px; }
+  .actions a { padding: 13px 20px; border: 1px solid var(--text); font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+  .primary { color: var(--bg); background: var(--text); }
+  .creators, .recent { padding-top: 38px; border-top: 1px solid var(--hairline); }
+  .recent { margin-top: 56px; }
+  .section-head { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; margin-bottom: 24px; }
+  .section-head h2 { margin: 0; font: 600 clamp(23px, 3vw, 34px) var(--font-serif); }
+  .section-head a, .section-head span { color: var(--muted); font-size: 12px; }
+  .actor-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 24px; }
+  .album-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 18px; }
+  .empty { padding: 42px; border: 1px dashed var(--border); color: var(--muted); text-align: center; }
 </style>

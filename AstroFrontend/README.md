@@ -1,119 +1,48 @@
-# Verso — Astro implementation
+# Verso frontend
 
-An Astro implementation of the "Verso Gallery" design originally exported from
-Claude's design canvas. A slow, editorial index of contemporary visual artists
-— home / discover, artists directory, artist profile, categories, category
-detail, tag detail, artwork detail, and search.
+Astro SSR frontend for the media platform. Catalog content is loaded at runtime
+from the PostgreSQL-backed Catalog API; production pages do not contain local
+catalog fixtures.
 
-Procedurally generated CSS gradients stand in for the artwork images, and the
-36-work / 9-artist dataset lives in `src/data/gallery.ts`.
+## Requirements
 
-## Prerequisites
+- Node.js 22.12 or newer
+- The .NET API and PostgreSQL catalog
+- `PUBLIC_API_BASE_URL`, the API root origin (required)
+- `PUBLIC_SITE_URL`, the public frontend origin (required for builds)
 
-Node.js 18.17+ (or 20+) and npm. **No global Astro install needed** — Astro
-is a project dev-dependency and is invoked via npm scripts.
+Copy `.env.example` to `.env` and set values for the local environment. Optional
+`PUBLIC_IMAGE_BASE_URL` and `PUBLIC_VIDEO_BASE_URL` values enable real asset
+delivery; deterministic visual placeholders are shown when those services are
+not configured.
 
-### Install Node.js
+## Commands
 
-**Windows (PowerShell, winget):**
-```powershell
-winget install OpenJS.NodeJS.LTS
-```
-
-**macOS (Homebrew):**
-```bash
-brew install node
-```
-
-**Linux (Ubuntu/Debian, NodeSource current LTS):**
-```bash
-curl -fsSL https://deb.nodesource.com/setup_lts.x | sudo -E bash -
-sudo apt-get install -y nodejs
-```
-
-Verify (any platform):
-```
-node --version
-npm --version
-```
-
-## Get the project
-
-```
-git clone <repo-url> verso
-cd verso
-```
-
-Or copy the `verso/` folder. Do **not** copy `node_modules/` — it's
-machine-specific and excluded by `.gitignore`.
-
-## Install dependencies
-
-```
+```sh
 npm install
+npm run dev
+npm run check
+npm run build
+npm run audit
 ```
 
-Reads `package.json` and installs everything into `./node_modules`.
+The production server output is written to `dist/`. Pages are server-rendered,
+so the Catalog API must be reachable at request time. The build itself does not
+fetch catalog content.
 
-## Run
+## Catalog routes
 
-```
-npm run dev       # dev server at http://localhost:4321
-npm run build     # produce static site in ./dist
-npm run preview   # serve the built ./dist locally
-```
+- `/` renders paged discovery and featured creators.
+- `/explore?q=&tag=&page=` performs server-side Catalog discovery.
+- `/actors` is the paged creator directory.
+- `/tags` and `/tags/[tag]` use Catalog tags and discovery.
+- `/actors/[slug]`, album, and GUID post routes use Catalog detail endpoints.
+- `/artists`, `/works`, and `/categories` are legacy routes resolved by the
+  Catalog API and returned as permanent redirects.
+- `/sitemap.xml` enumerates actors and albums. Post URLs are omitted because the
+  Catalog API has no bulk post endpoint; fetching posts per album would make
+  sitemap generation scale as an N+1 request pattern.
 
-That's the full loop.
-
-## Project layout
-
-```
-verso/
-├─ astro.config.mjs
-├─ package.json
-├─ tsconfig.json            # @/* → src/*
-└─ src/
-   ├─ data/gallery.ts       # artists, artworks, categories, helpers
-   ├─ layouts/Layout.astro  # global tokens, fonts, follow/save script
-   ├─ components/
-   │  ├─ Header.astro       # sticky nav + search form
-   │  ├─ Footer.astro
-   │  ├─ WorkCard.astro     # variants: default | masonry | compact | spotlight | pin
-   │  ├─ ArtistCard.astro
-   │  └─ CategoryCard.astro
-   └─ pages/
-      ├─ index.astro
-      ├─ artists/{index,[slug]}.astro
-      ├─ categories/{index,[slug]}.astro
-      ├─ tags/[tag].astro
-      ├─ works/[slug].astro
-      └─ search.astro
-```
-
-## Notes on routing
-
-- All pages are statically prerendered at build time.
-- Astro 4 strips query strings from prerendered pages, so the **search** page
-  and the **category tag filter** do their filtering client-side: the page
-  ships a JSON index (search) or `data-tags` attributes (category) and a small
-  inline script reads `window.location.search` to filter the DOM. No server
-  adapter required.
-- Follow / Save buttons persist in `localStorage` under `verso:following` and
-  `verso:saved`. Logic lives in the inline script at the bottom of
-  `src/layouts/Layout.astro` and is opted into via `data-follow-toggle` /
-  `data-save-toggle` attributes.
-
-## Editor (optional)
-
-```
-code --install-extension astro-build.astro-vscode
-```
-
-## Recommended npm scripts cheat-sheet
-
-| Command            | What it does                                  |
-| ------------------ | --------------------------------------------- |
-| `npm run dev`      | Local dev server, HMR, port 4321              |
-| `npm run build`    | Static build to `./dist`                      |
-| `npm run preview`  | Serves `./dist` locally to smoke-test a build |
-| `npx astro check`  | Type-check `.astro` files                     |
+API calls are centralized in `src/api/client.ts` and `src/api/catalog.ts`.
+`createApiClient` and `createCatalogApi` accept injected fetch/client functions
+for tests without introducing product fixture data into runtime code.

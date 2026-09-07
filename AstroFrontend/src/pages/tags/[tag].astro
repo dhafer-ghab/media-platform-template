@@ -1,94 +1,44 @@
 ---
-import Layout from '@/layouts/Layout.astro';
-import WorkCard from '@/components/ui/WorkCard.astro';
-import { allTags, artworksByTag, artistsByTag } from '@/data/gallery';
+export const prerender = false;
 
-export const prerender = true;
+import { catalogApi } from '@/api/catalog';
+import AlbumCard from '@/components/media/AlbumCard.astro';
+import Pagination from '@/components/media/Pagination.astro';
+import MediaLayout from '@/layouts/MediaLayout.astro';
+import { applyCatalogCache, pageParam, redirectPastLastPage } from '@/lib/http';
+import { tagPath, tagsPath } from '@/lib/routes';
 
-export function getStaticPaths() {
-  return allTags.map((t) => ({ params: { tag: t.toLowerCase() } }));
-}
+const page = pageParam(Astro.url);
+if (page === null) return new Response('Invalid page.', { status: 400 });
+const tag = Astro.params.tag ?? '';
+if (!tag) return new Response(null, { status: 404 });
 
-const { tag: tagParam } = Astro.params;
-const tagName = allTags.find((t) => t.toLowerCase() === tagParam);
-if (!tagName) {
-  return Astro.redirect('/');
-}
-
-const works = artworksByTag(tagName);
-const tagArtists = artistsByTag(tagName);
+const result = await catalogApi.discovery({ tag, page, pageSize: 24 }, { signal: Astro.request.signal });
+const pageRedirect = redirectPastLastPage(page, result.totalPages, (lastPage) => tagPath(tag, lastPage));
+if (pageRedirect) return pageRedirect;
+applyCatalogCache(Astro.response);
+const path = tagPath(tag, result.page);
 ---
 
-<Layout title={`${tagName} — Verso`}>
-  <main class="container page">
-    <a class="back-link" href="/">← Discover</a>
-    <div class="eyebrow" style="margin-top:22px">Tag</div>
-    <h1 class="h-display page__h1">{tagName}</h1>
-    {tagArtists.length > 0 && (
-      <div class="tag-artists">
-        <span class="tag-artists__label">Artists</span>
-        {tagArtists.map((a) => (
-          <a class="tag-artists__chip" href={`/artists/${a.slug}`}>{a.name}</a>
-        ))}
-      </div>
-    )}
-    <div class="masonry">
-      {works.map((w) => <WorkCard work={w} variant="masonry" />)}
-    </div>
+<MediaLayout title={result.page > 1 ? `${tag}, page ${result.page}` : tag}
+  description={`Explore albums tagged ${tag} in the Verso catalog, with photography, video, and contemporary visual stories.`}
+  path={path} noindex={result.items.length === 0}
+  prevPath={result.hasPrev ? tagPath(tag, result.page - 1) : null}
+  nextPath={result.hasNext ? tagPath(tag, result.page + 1) : null}>
+  <main class="container page-content">
+    <a class="back" href={tagsPath()}>All tags</a>
+    <p class="eyebrow">Tag</p><h1>{tag}</h1><p class="count">{result.totalItems} albums</p>
+    {result.items.length ? <div class="grid">{result.items.map((item, index) => <AlbumCard album={item} eager={page === 1 && index < 4} />)}</div> : <p class="empty">No albums use this tag.</p>}
+    <Pagination page={result.page} totalPages={result.totalPages} hasPrev={result.hasPrev} hasNext={result.hasNext} hrefFor={(nextPage) => tagPath(tag, nextPage)} label={`${tag} results`} />
   </main>
-</Layout>
+</MediaLayout>
 
 <style>
-  .page {
-    padding: clamp(36px, 5vw, 72px) 0;
-  }
-  .page__h1 {
-    font-size: clamp(34px, 5.5vw, 72px);
-    margin: 0.12em 0 0;
-    line-height: 1;
-    letter-spacing: -0.02em;
-  }
-  .tag-artists {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-    margin-top: 24px;
-    align-items: center;
-  }
-  .tag-artists__label {
-    font-size: 11px;
-    font-weight: 600;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: var(--faint);
-    margin-right: 4px;
-  }
-  .tag-artists__chip {
-    cursor: pointer;
-    font-family: 'Spectral', serif;
-    font-size: 16px;
-    padding: 6px 14px;
-    border: 1px solid var(--border);
-    border-radius: 999px;
-    color: var(--text);
-    transition: border-color 0.2s;
-  }
-  .tag-artists__chip:hover {
-    border-color: var(--ink);
-  }
-  .masonry {
-    column-count: 2;
-    column-gap: 30px;
-    margin-top: 38px;
-  }
-  @media (min-width: 700px) {
-    .masonry {
-      column-count: 3;
-    }
-  }
-  @media (min-width: 1100px) {
-    .masonry {
-      column-count: 4;
-    }
-  }
+  .page-content { padding-top: clamp(38px, 6vw, 76px); }
+  .back, .eyebrow { color: var(--accent); font-size: 11px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; }
+  .eyebrow { margin: 26px 0 0; }
+  h1 { margin: 8px 0 0; font: 500 clamp(38px, 6vw, 72px)/1 var(--font-serif); }
+  .count { margin-bottom: 32px; color: var(--muted); }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 18px; }
+  .empty { padding: 42px; border: 1px dashed var(--border); color: var(--muted); text-align: center; }
 </style>

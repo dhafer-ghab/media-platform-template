@@ -1,13 +1,14 @@
 ---
-import Layout from '@/layouts/Layout.astro';
+import MediaLayout from '@/layouts/MediaLayout.astro';
+import { loginPath, signupPath } from '@/lib/routes';
 
 export const prerender = true;
 ---
 
-<Layout title="Login">
+<MediaLayout title="Login" description="Sign in to your Verso account to access your saved media and account settings." path={loginPath()} noindex>
   <main class="container">
     <div class="login-form">
-      <h1 class="h-display">Login</h1>
+      <h1>Login</h1>
       <form id="login-form">
         <div class="form-group">
           <label for="email">Email</label>
@@ -17,12 +18,12 @@ export const prerender = true;
           <label for="password">Password</label>
           <input type="password" id="password" name="password" required />
         </div>
-        <button type="submit" class="btn btn-primary">Login</button>
+        <button type="submit">Login</button>
       </form>
-      <p>Don't have an account? <a href="/signup">Sign up</a></p>
+      <p>Don't have an account? <a href={signupPath()}>Sign up</a></p>
     </div>
   </main>
-</Layout>
+</MediaLayout>
 
 <style>
   .login-form {
@@ -36,6 +37,7 @@ export const prerender = true;
   .form-group {
     margin-bottom: 20px;
   }
+  h1 { font: 600 42px var(--font-serif); }
   label {
     display: block;
     margin-bottom: 8px;
@@ -53,6 +55,7 @@ export const prerender = true;
   }
   button {
     width: 100%;
+    padding: 13px; border: 0; background: var(--text); color: var(--bg); font-weight: 700; cursor: pointer;
   }
   p {
     margin-top: 20px;
@@ -68,6 +71,7 @@ export const prerender = true;
 <script>
   import { authApi, ApiError } from '@/api';
   import { setToken } from '@/lib/auth';
+  import { homePath } from '@/lib/routes';
 
   document.getElementById('login-form')!.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -78,7 +82,7 @@ export const prerender = true;
     try {
       const { token } = await authApi.login({ email, password });
       setToken(token);
-      window.location.href = '/';
+      window.location.href = homePath();
     } catch (error) {
       if (error instanceof ApiError) {
         alert('Login failed. Please check your credentials.');

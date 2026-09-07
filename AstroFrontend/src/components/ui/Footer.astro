@@ -1,5 +1,5 @@
 ---
-import { categories } from '@/data/gallery';
+import { actorsPath, explorePath, homePath, tagsPath } from '@/lib/routes';
 const year = new Date().getFullYear();
 ---
 
@@ -12,18 +12,14 @@ const year = new Date().getFullYear();
     <div class="cols">
       <div>
         <div class="col-label">Browse</div>
-        {
-          categories.map((c) => (
-            <a class="col-link" href={`/categories/${c.slug}`}>
-              {c.name}
-            </a>
-          ))
-        }
+        <a class="col-link" href={homePath()}>Discover</a>
+        <a class="col-link" href={explorePath()}>Explore</a>
+        <a class="col-link" href={tagsPath()}>Tags</a>
       </div>
       <div>
         <div class="col-label">Verso</div>
-        <a class="col-link" href="/artists">Artists</a>
-        <a class="col-link" href="/categories">Categories</a>
+        <a class="col-link" href={explorePath()}>Catalog</a>
+        <a class="col-link" href={actorsPath()}>Creators</a>
         <span class="col-link is-static">About</span>
         <span class="col-link is-static">Submit work</span>
       </div>

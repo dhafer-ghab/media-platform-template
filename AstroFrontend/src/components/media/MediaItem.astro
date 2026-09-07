@@ -1,11 +1,11 @@
 ---
-import type { Post } from '@/data/media';
+import type { PostDetails } from '@/api/catalog';
 import { postPath } from '@/lib/routes';
 import { imageUrl, imageSrcSet } from '@/lib/images';
-import { videoUrl, posterUrl } from '@/lib/video';
+import { isNativeVideo, videoUrl, posterUrl } from '@/lib/video';
 
 interface Props {
-  post: Post;
+  post: PostDetails;
   actorSlug: string;
   albumSlug: string;
   /** True for the first item only — the LCP candidate. */
@@ -34,7 +34,8 @@ const isVideo = post.mediaType === 'video';
 const poster = isVideo ? posterUrl(ref, { width: RENDER_W, height }) : null;
 const src = poster ?? imageUrl(ref, { width: RENDER_W, height, fit: 'contain' });
 const srcset = isVideo ? '' : imageSrcSet(ref, WIDTHS, { aspectRatio: post.aspectRatio, fit: 'contain' });
-const playable = isVideo ? videoUrl(ref) : null;
+const videoAsset = isVideo ? videoUrl(ref) : null;
+const playable = videoAsset && isNativeVideo(post.mimeType) ? videoAsset : null;
 
 const duration =
   post.durationSeconds != null
@@ -54,10 +55,11 @@ const duration =
       height={height}
       aria-label={post.altText}
     >
-      <source src={playable} type="application/x-mpegURL" />
+      <source src={playable} type={post.mimeType} />
+      <a href={playable}>Open video</a>
     </video>
   ) : (
-    <a class="feeditem__link" href={href}>
+    <a class="feeditem__link" href={videoAsset ?? href}>
       <img
         class="feeditem__media"
         src={src}
@@ -82,7 +84,8 @@ const duration =
     {post.caption && <span class="feeditem__text">{post.caption}</span>}
     <span class="feeditem__meta">
       {duration && <span class="feeditem__dur">{duration}</span>}
-      <a class="feeditem__perma" href={href}>Open</a>
+      {isVideo && videoAsset && !playable && <a class="feeditem__perma" href={videoAsset}>Open video</a>}
+      <a class="feeditem__perma" href={href}>View post</a>
     </span>
   </figcaption>
 </figure>

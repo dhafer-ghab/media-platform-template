@@ -14,7 +14,7 @@ export type ImageRef = {
   /** Storage key from the API (Post.StorageKey). Empty means no asset yet. */
   key: string;
   /** Stable id, used only to pick a deterministic placeholder. */
-  id: number;
+  id: string;
 };
 
 export type ImageTransform = {
@@ -63,9 +63,15 @@ const PLACEHOLDER_PALETTE: readonly (readonly [string, string])[] = [
   ['#00b09b', '#96c93d'],
 ];
 
-function placeholderUrl(id: number, width: number, height: number): string {
+function placeholderIndex(id: string): number {
+  let hash = 0;
+  for (const character of id) hash = (hash * 31 + character.charCodeAt(0)) | 0;
+  return Math.abs(hash) % PLACEHOLDER_PALETTE.length;
+}
+
+function placeholderUrl(id: string, width: number, height: number): string {
   const [from, to] =
-    PLACEHOLDER_PALETTE[Math.abs(id) % PLACEHOLDER_PALETTE.length]!;
+    PLACEHOLDER_PALETTE[placeholderIndex(id)]!;
 
   const svg =
     `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">` +
@@ -117,8 +123,8 @@ export function imageSrcSet(
 /** CSS gradient for decorative surfaces that have no asset of their own —
  *  the profile cover banner. ActorProfile has no cover field in the domain
  *  model, so this is a presentation fallback, not missing data. */
-export function placeholderGradient(id: number): string {
+export function placeholderGradient(id: string): string {
   const [from, to] =
-    PLACEHOLDER_PALETTE[Math.abs(id) % PLACEHOLDER_PALETTE.length]!;
+    PLACEHOLDER_PALETTE[placeholderIndex(id)]!;
   return `linear-gradient(115deg, ${from} 0%, ${to} 100%)`;
 }

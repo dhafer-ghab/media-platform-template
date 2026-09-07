@@ -3,39 +3,36 @@ export const prerender = false;
 
 import MediaLayout from '@/layouts/MediaLayout.astro';
 import Breadcrumbs from '@/components/media/Breadcrumbs.astro';
-import {
-  getActorBySlug, getAlbumBySlug, getPostById, adjacentPosts, type Post,
-} from '@/data/media';
-import { actorPath, albumPath, postPath, absoluteUrl } from '@/lib/routes';
+import { ApiError } from '@/api/client';
+import { catalogApi, type PostDetails } from '@/api/catalog';
+import { actorPath, albumPath, postPath, absoluteUrl, homePath, tagPath } from '@/lib/routes';
 import { imageUrl, imageSrcSet } from '@/lib/images';
-import { videoUrl, posterUrl } from '@/lib/video';
+import { isNativeVideo, videoUrl, posterUrl } from '@/lib/video';
 import { clamp } from '@/lib/text';
 import { siteName } from '@/config/site';
 
 const { slug, album: albumSlug, id } = Astro.params;
-const actor = slug ? getActorBySlug(slug) : undefined;
-const album = actor && albumSlug ? getAlbumBySlug(actor.slug, albumSlug) : undefined;
-const postId = Number(id);
-const post = album && Number.isInteger(postId) ? getPostById(album.id, postId) : undefined;
-if (!actor || !album || !post) return new Response(null, { status: 404 });
-
-// ── HTTP caching ───────────────────────────────────────────────
-// A post changes only on edit or delete, so it holds far longer than the
-// profile and album pages, which change whenever anything below them does.
-const headers: Record<string, string> = {
-  'Cache-Control': 'public, max-age=0, s-maxage=3600, stale-while-revalidate=86400',
-  'Last-Modified': new Date(post.updatedAt).toUTCString(),
-};
-
-const ims = Astro.request.headers.get('if-modified-since');
-if (ims && Date.parse(ims) >= Date.parse(post.updatedAt)) {
-  return new Response(null, { status: 304, headers });
+if (!slug || !albumSlug || !id) return new Response(null, { status: 404 });
+let actor;
+let album;
+let post;
+try {
+  [actor, album, post] = await Promise.all([
+    catalogApi.actor(slug, { signal: Astro.request.signal }),
+    catalogApi.album(slug, albumSlug, { signal: Astro.request.signal }),
+    catalogApi.postById(id, { signal: Astro.request.signal }),
+  ]);
+} catch (error) {
+  if (error instanceof ApiError && (error.status === 400 || error.status === 404)) return new Response(null, { status: 404 });
+  throw error;
 }
-for (const [k, v] of Object.entries(headers)) Astro.response.headers.set(k, v);
+if (post.actorId !== actor.id || post.albumId !== album.id) return new Response(null, { status: 404 });
+
+Astro.response.headers.set('Cache-Control', 'public, max-age=0, s-maxage=3600, stale-while-revalidate=86400');
 
 // ── Presentation ───────────────────────────────────────────────
 /** Post has no title field; the caption names it, the alt text describes it. */
-const displayTitle = (p: Post) => clamp(p.caption ?? p.altText, 70);
+const displayTitle = (p: PostDetails) => clamp(p.caption ?? p.altText, 70);
 
 const heading = displayTitle(post);
 const isVideo = post.mediaType === 'video';
@@ -48,8 +45,10 @@ const ref = { key: post.storageKey, id: post.id };
 const poster = isVideo ? posterUrl(ref, { width: RENDER_W, height }) : null;
 const src = poster ?? imageUrl(ref, { width: RENDER_W, height, fit: 'contain' });
 const srcset = isVideo ? '' : imageSrcSet(ref, WIDTHS, { aspectRatio: post.aspectRatio, fit: 'contain' });
-const playable = isVideo ? videoUrl(ref) : null;
-const realAsset = !src.startsWith('data:');
+const videoAsset = isVideo ? videoUrl(ref) : null;
+const playable = videoAsset && isNativeVideo(post.mimeType) ? videoAsset : null;
+const realImage = !src.startsWith('data:');
+const contentAsset = isVideo ? videoAsset : realImage ? src : null;
 
 const mmss =
   post.durationSeconds != null
@@ -59,7 +58,6 @@ const mmss =
 /** Schema.org wants ISO 8601, not mm:ss. */
 const iso8601 = (s: number) => `PT${Math.floor(s / 60)}M${s % 60}S`;
 
-const { prev, next } = adjacentPosts(album.id, post.id);
 const path = postPath(actor.slug, album.slug, post.id);
 
 const description = clamp(
@@ -67,7 +65,7 @@ const description = clamp(
 );
 
 const crumbs = [
-  { label: siteName, href: '/' },
+  { label: siteName, href: homePath() },
   { label: actor.displayName, href: actorPath(actor.slug) },
   { label: album.title, href: albumPath(actor.slug, album.slug) },
   { label: heading },
@@ -75,15 +73,15 @@ const crumbs = [
 
 // Only emitted with real assets — a data-URI contentUrl or thumbnailUrl is
 // invalid structured data, and an invalid entity is worse than none.
-const mediaLd = realAsset
+const mediaLd = contentAsset
   ? {
       '@context': 'https://schema.org',
       '@type': isVideo ? 'VideoObject' : 'ImageObject',
       name: heading,
       description: post.altText,
       uploadDate: post.publishedAt,
-      contentUrl: absoluteUrl(src, Astro.site),
-      ...(isVideo && poster ? { thumbnailUrl: absoluteUrl(poster, Astro.site) } : {}),
+      contentUrl: absoluteUrl(contentAsset, Astro.site),
+      ...(isVideo && poster && !poster.startsWith('data:') ? { thumbnailUrl: absoluteUrl(poster, Astro.site) } : {}),
       ...(post.durationSeconds != null ? { duration: iso8601(post.durationSeconds) } : {}),
       representativeOfPage: true,
       author: {
@@ -119,9 +117,7 @@ const jsonLd = [
   description={description}
   path={path}
   ogType="article"
-  image={realAsset ? { url: absoluteUrl(src, Astro.site), width: RENDER_W, height, alt: post.altText } : null}
-  prevPath={prev ? postPath(actor.slug, album.slug, prev.id) : null}
-  nextPath={next ? postPath(actor.slug, album.slug, next.id) : null}
+  image={realImage ? { url: absoluteUrl(src, Astro.site), width: RENDER_W, height, alt: post.altText } : null}
   jsonLd={jsonLd}
 >
   <main>
@@ -140,7 +136,8 @@ const jsonLd = [
             height={height}
             aria-label={post.altText}
           >
-            <source src={playable} type="application/x-mpegURL" />
+            <source src={playable} type={post.mimeType} />
+            <a href={playable}>Open video</a>
           </video>
         ) : (
           <div class="post-mediawrap">
@@ -164,6 +161,10 @@ const jsonLd = [
           </div>
         )}
 
+        {isVideo && videoAsset && !playable && (
+          <p class="post-fallback"><a href={videoAsset}>Open video</a></p>
+        )}
+
         <h1 class="post-h1">{heading}</h1>
         {post.caption && post.caption !== heading && (
           <figcaption class="post-cap">{post.caption}</figcaption>
@@ -184,29 +185,11 @@ const jsonLd = [
         <time datetime={post.publishedAt}>{post.publishedAt}</time>
       </p>
 
-      <nav class="post-nav" aria-label="Album media">
-        {prev ? (
-          <a class="post-navbtn" href={postPath(actor.slug, album.slug, prev.id)} rel="prev">
-            <span class="pnl">Previous</span>
-            <span class="pnt">{displayTitle(prev)}</span>
-          </a>
-        ) : (
-          <span />
-        )}
-
-        {next && (
-          <a class="post-navbtn next" href={postPath(actor.slug, album.slug, next.id)} rel="next">
-            <span class="pnl">Next</span>
-            <span class="pnt">{displayTitle(next)}</span>
-          </a>
-        )}
-      </nav>
-
-      {album.tags.length > 0 && (
+      {post.tags.length > 0 && (
         <section class="post-tags">
           <h2 class="post-h2">Tags</h2>
           <ul class="taglist">
-            {album.tags.map((t) => <li class="tag">{t}</li>)}
+            {post.tags.map((t) => <li><a class="tag" href={tagPath(t)}>{t}</a></li>)}
           </ul>
         </section>
       )}
@@ -245,6 +228,9 @@ const jsonLd = [
     padding-left: 4px;
   }
 
+  .post-fallback { margin: 10px 2px 0; }
+  .post-fallback a { color: var(--accent); font-weight: 600; }
+
   .post-h1 {
     font-family: var(--font-serif);
     font-size: 26px;
@@ -278,41 +264,6 @@ const jsonLd = [
   .post-metaline a:hover { color: var(--accent); }
   .post-owner { color: var(--accent); }
   .sep { color: var(--faint); }
-
-  .post-nav {
-    display: flex;
-    justify-content: space-between;
-    gap: 12px;
-    margin: 22px 0 0;
-  }
-  .post-navbtn {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    padding: 11px 16px;
-    border: 1px solid var(--border-soft);
-    border-radius: 11px;
-    background: var(--bg);
-    max-width: 47%;
-  }
-  .post-navbtn.next { align-items: flex-end; text-align: right; margin-left: auto; }
-  .post-navbtn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-  .pnl {
-    font: 600 10px var(--font-sans);
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: var(--faint);
-  }
-  .pnt {
-    font-family: var(--font-serif);
-    font-size: 14px;
-    color: var(--text);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 100%;
-  }
-  .post-navbtn:hover .pnt { color: var(--accent); }
 
   .post-tags {
     margin: 36px 0 0;

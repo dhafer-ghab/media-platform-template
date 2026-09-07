@@ -6,8 +6,11 @@
 import { imageUrl } from './images';
 
 const VIDEO_BASE_URL = import.meta.env.PUBLIC_VIDEO_BASE_URL ?? '';
+const VIDEO_ORIGIN = VIDEO_BASE_URL.replace(/\/$/, '');
 
-export type VideoRef = { key: string; id: number };
+export type VideoRef = { key: string; id: string };
+
+const NATIVE_VIDEO_TYPES = new Set(['video/mp4', 'video/webm', 'video/ogg']);
 
 /**
  * Playable source, or null when no asset exists yet.
@@ -17,7 +20,11 @@ export type VideoRef = { key: string; id: number };
 export function videoUrl(ref: VideoRef): string | null {
   if (!ref.key || !VIDEO_BASE_URL) return null;
   const key = ref.key.replace(/^\/+/, '');
-  return `${VIDEO_BASE_URL}/${key}/manifest/video.m3u8`;
+  return `${VIDEO_ORIGIN}/${key}`;
+}
+
+export function isNativeVideo(mimeType: string): boolean {
+  return NATIVE_VIDEO_TYPES.has(mimeType.toLowerCase().split(';', 1)[0]!.trim());
 }
 
 /**
@@ -35,5 +42,5 @@ export function posterUrl(
     return imageUrl({ key: '', id: ref.id }, t);
   }
   const key = ref.key.replace(/^\/+/, '');
-  return `${VIDEO_BASE_URL}/${key}/thumbnails/thumbnail.jpg?width=${t.width}`;
+  return `${VIDEO_ORIGIN}/${key}/thumbnails/thumbnail.jpg?width=${t.width}`;
 }
