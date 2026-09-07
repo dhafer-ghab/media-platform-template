@@ -1,4 +1,7 @@
 using System.Reflection;
+using Catalog.Application.Abstractions;
+using Catalog.Contracts;
+using Catalog.Domain;
 using SharedKernal.Entities;
 using Users.Application.Abstractions;
 using Users.Domain;
@@ -25,6 +28,20 @@ public abstract class TestBase
 {
     // ── Building Blocks ──────────────────────────────────────────
     protected static readonly Assembly SharedKernalAssembly = typeof(BaseEntity).Assembly;
+
+    protected static readonly Assembly CatalogDomainAssembly = typeof(Actor).Assembly;
+    protected static readonly Assembly CatalogContractsAssembly = typeof(ActorProfile).Assembly;
+    protected static readonly Assembly CatalogApplicationAssembly = typeof(ICatalogReader).Assembly;
+    protected static readonly Assembly CatalogInfraAssembly = typeof(Catalog.Infrastructure.CatalogModule).Assembly;
+    protected static readonly Assembly CatalogPresentationAssembly = typeof(Catalog.Presentation.CatalogPresentationExtensions).Assembly;
+    protected static readonly IEnumerable<Assembly> CatalogModuleAssemblies =
+    [
+        CatalogDomainAssembly,
+        CatalogContractsAssembly,
+        CatalogApplicationAssembly,
+        CatalogInfraAssembly,
+        CatalogPresentationAssembly
+    ];
 
     // ── Users Module ─────────────────────────────────────────────
     protected static readonly Assembly UsersDomainAssembly       = typeof(User).Assembly;

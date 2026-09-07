@@ -34,6 +34,26 @@ namespace CleanModular.ArchTests;
 public class ModuleIsolationTests : TestBase
 {
     [Fact]
+    public void CatalogModule_ShouldNot_Reference_UsersModule()
+    {
+        Types.InAssemblies(CatalogModuleAssemblies)
+            .Should()
+            .NotHaveDependencyOn("Users")
+            .GetResult()
+            .ShouldBeSuccessful();
+    }
+
+    [Fact]
+    public void UsersModule_ShouldNot_Reference_CatalogModule()
+    {
+        Types.InAssemblies(UsersModuleAssemblies)
+            .Should()
+            .NotHaveDependencyOn("Catalog")
+            .GetResult()
+            .ShouldBeSuccessful();
+    }
+
+    [Fact]
     public void UsersModule_ShouldNot_Reference_PostsModule()
     {
         Types.InAssemblies(UsersModuleAssemblies)

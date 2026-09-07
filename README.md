@@ -57,6 +57,29 @@ For Aspire development, provide the `password`, `jwt-secret`, `jwt-issuer`,
 secrets or environment configuration. Aspire derives connection strings,
 service origins, and allowed hosts from the declared resources.
 
+## Catalog imports
+
+Catalog content is stored in PostgreSQL. Actors, albums, posts, editorial
+ordering, tags, publication timestamps, and legacy redirects are not embedded
+in the application or frontend.
+
+Apply Catalog migrations through the normal controlled migration process, then
+run the one-time importer with an explicit snapshot file:
+
+```powershell
+$env:CATALOG_CONNECTION_STRING = '<secret-provider-value>'
+dotnet run --project .\src\Catalog.Import\Catalog.Import.csproj -- --file .\catalog.json --dry-run
+dotnet run --project .\src\Catalog.Import\Catalog.Import.csproj -- --file .\catalog.json
+```
+
+The import document is authoritative: records absent from a successful import
+are removed. The importer validates the complete document before writing,
+serializes concurrent imports with a PostgreSQL advisory transaction lock, and
+commits the replacement atomically. `--dry-run` performs the same validation and
+database operations before rolling the transaction back. Connection strings are
+accepted only from `CATALOG_CONNECTION_STRING` or
+`ConnectionStrings__PostgreConnectionString`, never from command-line arguments.
+
 start container without aspire (for persistent container aspire doesnt allow port mapping and persistent containers are acting up)
 ```bash
 docker run --name postgres -e POSTGRES_PASSWORD=password -p 5432:5432 -v ./postgres-data:/var/lib/postgresql postgres:18.3

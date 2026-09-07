@@ -27,6 +27,10 @@
     The compiler will pull all assemblies into the bin folder automatically.
   -->
   <ItemGroup>
+    <ProjectReference Include="..\..\Catalog.Application\Catalog.Application.csproj" />
+    <ProjectReference Include="..\..\Catalog.Domain\Catalog.Domain.csproj" />
+    <ProjectReference Include="..\..\Catalog.Infrastructure\Catalog.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\Catalog.Presentation\Catalog.Presentation.csproj" />
     <ProjectReference Include="..\..\SharedKernal\SharedKernal.csproj" />
     <ProjectReference Include="..\..\Users.Domain\Users.Domain.csproj" />
     <ProjectReference Include="..\..\Users.Application\Users.Application.csproj" />

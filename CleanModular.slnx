@@ -12,6 +12,14 @@
     <Project Path="src/Host.WebApi/Host.WebApi.csproj" />
   </Folder>
   <Folder Name="/src/Modules/" />
+  <Folder Name="/src/Modules/Catalog/">
+    <Project Path="src/Catalog.Application/Catalog.Application.csproj" />
+    <Project Path="src/Catalog.Contracts/Catalog.Contracts.csproj" />
+    <Project Path="src/Catalog.Domain/Catalog.Domain.csproj" />
+    <Project Path="src/Catalog.Import/Catalog.Import.csproj" />
+    <Project Path="src/Catalog.Infrastructure/Catalog.Infrastructure.csproj" />
+    <Project Path="src/Catalog.Presentation/Catalog.Presentation.csproj" />
+  </Folder>
   <Folder Name="/src/Modules/Posts/" />
   <Folder Name="/src/Modules/Storage/" />
   <Folder Name="/src/Modules/Users/">
@@ -26,6 +34,7 @@
     <Project Path="src/Tests/ArchTests/CleanModular.ArchTests.csproj" />
   </Folder>
   <Folder Name="/src/Tests/IntegrationTests/">
+    <Project Path="src/Tests/IntegrationTests/Catalog.IntegrationTests/Catalog.IntegrationTests.csproj" />
     <Project Path="src/Tests/IntegrationTests/Users.IntegrationTests/Users.IntegrationTests.csproj" />
   </Folder>
   <Folder Name="/src/Tests/UnitTests/">

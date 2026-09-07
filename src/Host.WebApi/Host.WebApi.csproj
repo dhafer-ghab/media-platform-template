@@ -19,6 +19,8 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\Catalog.Infrastructure\Catalog.Infrastructure.csproj" />
+    <ProjectReference Include="..\Catalog.Presentation\Catalog.Presentation.csproj" />
     <ProjectReference Include="..\CleanModular.ServiceDefaults\CleanModular.ServiceDefaults.csproj" />
     <ProjectReference Include="..\Users.Infrastracture\Users.Infrastracture.csproj" />
     <ProjectReference Include="..\Users.Presentation\Users.Presentation.csproj" />

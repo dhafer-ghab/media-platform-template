@@ -1,4 +1,6 @@
-﻿using MassTransit;
+﻿using Catalog.Infrastructure;
+using Catalog.Presentation;
+using MassTransit;
 using Microsoft.EntityFrameworkCore;
 using Users.Infrastracture.Persistence;
 using Users.Infrastracture;
@@ -12,6 +14,7 @@ public static class HostExtensions
     public static async Task ApplyMigrations(this WebApplication app)
     {
         await MigrateModuleDbAsync<UsersDbContext>(app);
+        await app.Services.MigrateCatalogAsync();
     }
 
     public static TBuilder RegisterModules<TBuilder>(this TBuilder builder) where TBuilder : IHostApplicationBuilder
@@ -19,6 +22,9 @@ public static class HostExtensions
         // register users modules
         builder.Services.AddUsersInfrastructure(builder.Configuration);
         builder.Services.AddUsersPresentation();
+
+        builder.Services.AddCatalogModule(builder.Configuration);
+        builder.Services.AddCatalogPresentation();
 
         builder.Services.AddMessageBus();
 

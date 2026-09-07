@@ -18,6 +18,34 @@ namespace CleanModular.ArchTests;
 /// </summary>
 public class LayerDependencyTests : TestBase
 {
+    [Fact]
+    public void CatalogLayers_ShouldRespect_DependencyDirection()
+    {
+        Types.InAssembly(CatalogContractsAssembly).Should()
+            .NotHaveDependencyOnAny(
+                CatalogDomainAssembly.GetName().Name,
+                CatalogApplicationAssembly.GetName().Name,
+                CatalogInfraAssembly.GetName().Name,
+                CatalogPresentationAssembly.GetName().Name)
+            .GetResult().ShouldBeSuccessful();
+        Types.InAssembly(CatalogDomainAssembly).Should()
+            .NotHaveDependencyOnAny(
+                CatalogApplicationAssembly.GetName().Name,
+                CatalogInfraAssembly.GetName().Name,
+                CatalogPresentationAssembly.GetName().Name)
+            .GetResult().ShouldBeSuccessful();
+        Types.InAssembly(CatalogApplicationAssembly).Should()
+            .NotHaveDependencyOnAny(
+                CatalogInfraAssembly.GetName().Name,
+                CatalogPresentationAssembly.GetName().Name)
+            .GetResult().ShouldBeSuccessful();
+        Types.InAssembly(CatalogPresentationAssembly).Should()
+            .NotHaveDependencyOnAny(
+                CatalogDomainAssembly.GetName().Name,
+                CatalogInfraAssembly.GetName().Name)
+            .GetResult().ShouldBeSuccessful();
+    }
+
     // ── DOMAIN ───────────────────────────────────────────────────
 
     [Fact]
