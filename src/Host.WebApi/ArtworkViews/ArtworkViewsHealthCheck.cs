@@ -4,7 +4,7 @@ using Microsoft.Extensions.Diagnostics.HealthChecks;
 
 namespace Host.WebApi.ArtworkViews;
 
-internal sealed class ArtworkViewsHealthCheck(ArtworkViewsDbContext dbContext) : IHealthCheck
+internal sealed class ArtworkViewsHealthCheck(IServiceScopeFactory scopeFactory) : IHealthCheck
 {
     public async Task<HealthCheckResult> CheckHealthAsync(
         HealthCheckContext context,
@@ -12,7 +12,9 @@ internal sealed class ArtworkViewsHealthCheck(ArtworkViewsDbContext dbContext) :
     {
         try
         {
-            await using var connection = dbContext.Database.GetDbConnection();
+            await using var scope = scopeFactory.CreateAsyncScope();
+            var dbContext = scope.ServiceProvider.GetRequiredService<ArtworkViewsDbContext>();
+            var connection = dbContext.Database.GetDbConnection();
             if (connection.State != ConnectionState.Open)
                 await connection.OpenAsync(cancellationToken);
 
