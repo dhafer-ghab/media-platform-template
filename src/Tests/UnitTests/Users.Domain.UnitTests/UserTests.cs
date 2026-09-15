@@ -1,5 +1,5 @@
 using Moq;
-using Users.Common;
+using SharedKernel.Entities.Enums;
 using Users.Domain.Abstractions;
 
 namespace Users.Domain.UnitTests;

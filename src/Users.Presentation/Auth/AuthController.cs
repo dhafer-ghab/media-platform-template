@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using SharedKernal.Extensions;
 using Users.Application.Users.Commands.CreateUser;
 using Users.Application.Users.Commands.Login;
-using Users.Common;
+using SharedKernel.Entities.Enums;
 
 namespace Users.Presentation.Auth;
 

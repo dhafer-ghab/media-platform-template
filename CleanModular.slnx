@@ -13,7 +13,13 @@
   </Folder>
   <Folder Name="/src/Modules/" />
   <Folder Name="/src/Modules/Posts/" />
-  <Folder Name="/src/Modules/Storage/" />
+  <Folder Name="/src/Modules/Storage/">
+    <Project Path="src/Storage.Domain/Storage.Domain.csproj" Id="a1b2c3d4-e5f6-7890-abcd-ef1234567890" />
+    <Project Path="src/Storage.Application/Storage.Application.csproj" Id="b2c3d4e5-f6a7-8901-bcde-f12345678901" />
+    <Project Path="src/Storage.Contracts/Storage.Contracts.csproj" Id="c3d4e5f6-a7b8-9012-cdef-123456789012" />
+    <Project Path="src/Storage.Infrastracture/Storage.Infrastracture.csproj" Id="d4e5f6a7-b8c9-0123-defa-234567890123" />
+    <Project Path="src/Storage.Presentation/Storage.Presentation.csproj" Id="e5f6a7b8-c9d0-1234-efab-345678901234" />
+  </Folder>
   <Folder Name="/src/Modules/Users/">
     <Project Path="src/Users.Application/Users.Application.csproj" Id="e13a39c5-587f-4df6-9012-378224f2aee0" />
     <Project Path="src/Users.Contracts/Users.Contracts.csproj" Id="470187e7-c8b8-4332-b0f5-ffb7bfb4cfef" />

@@ -1,6 +1,6 @@
 ﻿using SharedKernal.Entities;
 using SharedKernal.Results;
-using Users.Common;
+using SharedKernel.Entities.Enums;
 using Users.Domain.Abstractions;
 using Users.Domain.DomainEvents;
 using Users.Domain.ValueObjects;

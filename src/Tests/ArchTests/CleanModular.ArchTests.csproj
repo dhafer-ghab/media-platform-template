@@ -28,6 +28,10 @@
   -->
   <ItemGroup>
     <ProjectReference Include="..\..\SharedKernal\SharedKernal.csproj" />
+    <ProjectReference Include="..\..\Storage.Domain\Storage.Domain.csproj" />
+    <ProjectReference Include="..\..\Storage.Application\Storage.Application.csproj" />
+    <ProjectReference Include="..\..\Storage.Infrastracture\Storage.Infrastracture.csproj" />
+    <ProjectReference Include="..\..\Storage.Presentation\Storage.Presentation.csproj" />
     <ProjectReference Include="..\..\Users.Domain\Users.Domain.csproj" />
     <ProjectReference Include="..\..\Users.Application\Users.Application.csproj" />
     <ProjectReference Include="..\..\Users.Infrastracture\Users.Infrastracture.csproj" />

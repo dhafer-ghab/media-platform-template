@@ -4,7 +4,7 @@ using Moq;
 using SharedKernal.Results;
 using Users.Application.Users.Commands.CreateUser;
 using Users.Application.Users.Commands.Login;
-using Users.Common;
+using SharedKernel.Entities.Enums;
 using Users.Presentation.Auth;
 
 namespace Users.Presentation.UnitTests;

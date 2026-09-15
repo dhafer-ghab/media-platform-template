@@ -1,0 +1,195 @@
+---
+import Layout from '@/layouts/Layout.astro';
+---
+
+<Layout
+  title="Admin Dashboard"
+  description="Administration panel"
+>
+  <main class="container">
+    <header class="page-head">
+      <p class="eyebrow">Admin</p>
+
+      <h1 class="h-display">
+        Administration
+      </h1>
+
+      <p class="lede">
+        Manage users, media, files and other administrative tasks from one
+        place.
+      </p>
+    </header>
+
+    <section class="dashboard-grid">
+
+      <a href="/admin/users" class="card">
+        <div class="icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/>
+            <circle cx="9" cy="7" r="4"/>
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+            <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+          </svg>
+        </div>
+
+        <h2>Users</h2>
+
+        <p>
+          Browse users, manage accounts and administrator permissions.
+        </p>
+
+        <span class="action">
+          Open →
+        </span>
+      </a>
+
+      <a href="/admin/upload" class="card">
+        <div class="icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+            <path d="M12 16V4"/>
+            <path d="M8 8l4-4 4 4"/>
+            <path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/>
+          </svg>
+        </div>
+
+        <h2>Upload</h2>
+
+        <p>
+          Upload images, documents and other media files.
+        </p>
+
+        <span class="action">
+          Open →
+        </span>
+      </a>
+
+      <a href="/admin/files" class="card">
+        <div class="icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+            <path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/>
+            <path d="M14 3v6h6"/>
+          </svg>
+        </div>
+
+        <h2>Files</h2>
+
+        <p>
+          Browse uploaded files, copy links or remove unused media.
+        </p>
+
+        <span class="action">
+          Open →
+        </span>
+      </a>
+
+      <a href="/admin/settings" class="card">
+        <div class="icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 8a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 8.92 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 8c.64.24 1.11.86 1.11 1.54V10a2 2 0 1 1 0 4v.09c0 .68-.47 1.3-1.11 1.54z"/>
+          </svg>
+        </div>
+
+        <h2>Settings</h2>
+
+        <p>
+          Configure application settings and administrative options.
+        </p>
+
+        <span class="action">
+          Open →
+        </span>
+      </a>
+
+    </section>
+  </main>
+</Layout>
+
+<style>
+.page-head {
+  padding: 3rem 0 2rem;
+}
+
+.lede {
+  margin-top: .75rem;
+  max-width: 48ch;
+  color: var(--muted);
+  font-size: 1.05rem;
+  line-height: 1.6;
+}
+
+.dashboard-grid {
+  display: grid;
+  gap: 1.5rem;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  padding-bottom: 3rem;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+
+  padding: 1.5rem;
+
+  background: var(--surface);
+
+  border: 1px solid var(--border-soft);
+
+  border-radius: 14px;
+
+  text-decoration: none;
+
+  color: inherit;
+
+  transition:
+    transform .2s ease,
+    border-color .2s ease,
+    box-shadow .2s ease;
+}
+
+.card:hover {
+  transform: translateY(-4px);
+
+  border-color: var(--accent);
+
+  box-shadow: 0 10px 28px rgba(0,0,0,.08);
+}
+
+.icon {
+  width: 56px;
+  height: 56px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 12px;
+
+  background: var(--chip-bg);
+
+  color: var(--accent);
+}
+
+.icon svg {
+  width: 28px;
+  height: 28px;
+}
+
+.card h2 {
+  margin: 0;
+  font-size: 1.2rem;
+}
+
+.card p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.6;
+  flex: 1;
+}
+
+.action {
+  font-weight: 600;
+  color: var(--accent);
+}
+</style>

@@ -52,4 +52,24 @@ public class ModuleIsolationTests : TestBase
             .GetResult()
             .ShouldBeSuccessful();
     }
+
+    [Fact]
+    public void StorageModule_ShouldNot_Reference_UsersModule()
+    {
+        Types.InAssemblies(StorageModuleAssemblies)
+            .Should()
+            .NotHaveDependencyOn("Users")
+            .GetResult()
+            .ShouldBeSuccessful();
+    }
+
+    [Fact]
+    public void StorageModule_ShouldNot_Reference_PostsModule()
+    {
+        Types.InAssemblies(StorageModuleAssemblies)
+            .Should()
+            .NotHaveDependencyOn("Posts")
+            .GetResult()
+            .ShouldBeSuccessful();
+    }
 }

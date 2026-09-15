@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.DependencyInjection;
-using Users.Common;
+using SharedKernel.Entities.Enums;
 using Users.Presentation.Authorization.Handlers;
 using Users.Presentation.Authorization.Requirements;
 

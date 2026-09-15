@@ -1,5 +1,7 @@
 using System.Reflection;
 using SharedKernal.Entities;
+using Storage.Application.Abstractions;
+using Storage.Domain;
 using Users.Application.Abstractions;
 using Users.Domain;
 using Users.Presentation;
@@ -39,5 +41,20 @@ public abstract class TestBase
         UsersApplicationAssembly,
         UsersInfraAssembly,
         UsersPresentationAssembly
+    ];
+
+    // ── Storage Module ───────────────────────────────────────────
+    protected static readonly Assembly StorageDomainAssembly       = typeof(MediaAsset).Assembly;
+    protected static readonly Assembly StorageApplicationAssembly  = typeof(IFileRepository).Assembly;
+    protected static readonly Assembly StorageInfraAssembly        = typeof(Storage.Infrastracture.DependencyInjection).Assembly;
+    protected static readonly Assembly StoragePresentationAssembly = typeof(Storage.Presentation.Extension).Assembly;
+
+    // All Storage assemblies together — used in module isolation tests
+    protected static readonly IEnumerable<Assembly> StorageModuleAssemblies =
+    [
+        StorageDomainAssembly,
+        StorageApplicationAssembly,
+        StorageInfraAssembly,
+        StoragePresentationAssembly
     ];
 }

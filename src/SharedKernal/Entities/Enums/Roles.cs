@@ -1,4 +1,4 @@
-﻿namespace Users.Common
+﻿namespace SharedKernel.Entities.Enums
 {
     public enum Role
     {

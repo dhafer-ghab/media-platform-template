@@ -1,0 +1,445 @@
+---
+import Layout from '@/layouts/Layout.astro';
+import UrlCollector from '@/components/interactive/LinkSender.astro';
+---
+
+<Layout title="Upload · Admin" description="Upload images and files to the media library">
+  <main class="container">
+    <header class="page-head">
+      <p class="eyebrow">Admin</p>
+      <h1 class="h-display">Upload media</h1>
+      <p class="lede">Add images and files to the library. Drag them onto the drop zone or browse your device.</p>
+    </header>
+
+    <div id="auth-notice" class="notice hidden">
+      <p>You need to be logged in as an admin to upload files.</p>
+      <a class="btn btn-primary btn-sm" href="/login">Log in</a>
+    </div>
+
+    <section id="uploader" aria-label="File uploader">
+      <div id="drop-zone" class="drop-zone" role="button" tabindex="0" aria-label="Drop files here or press to browse">
+        <svg class="drop-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M12 16V4m0 0 4 4m-4-4-4 4" />
+          <path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" />
+        </svg>
+        <p class="drop-title">Drop files here</p>
+        <p class="drop-sub">or <span class="drop-browse">browse</span> — up to 100 MB per file</p>
+      </div>
+      <input type="file" id="file-input" multiple hidden />
+
+      <ul id="queue" class="queue" aria-live="polite"></ul>
+
+      <div class="actions" id="actions" hidden>
+        <button type="button" id="upload-btn" class="btn btn-primary">Upload <span id="upload-count"></span></button>
+        <button type="button" id="clear-btn" class="btn btn-ghost">Clear</button>
+      </div>
+    </section>
+        
+    <UrlCollector
+      title="External URLs"
+      placeholder="https://example.com/image.jpg"
+      maxItems={50}
+    />
+  </main>
+</Layout>
+
+<style>
+  .page-head {
+    padding: 3rem 0 2rem;
+  }
+
+  .lede {
+    margin-top: 0.75rem;
+    max-width: 46ch;
+    color: var(--muted);
+    font-size: 1.05rem;
+    line-height: 1.6;
+  }
+
+  .notice {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    padding: 1rem 1.25rem;
+    background: var(--surface);
+    border: 1px solid var(--border-soft);
+    border-radius: 10px;
+    color: var(--text-2);
+  }
+
+  .notice p {
+    margin: 0;
+    flex: 1;
+  }
+
+  .drop-zone {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+    padding: 3.5rem 1.5rem;
+    background: var(--surface);
+    border: 1.5px dashed var(--border);
+    border-radius: 14px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s ease;
+  }
+
+  .drop-zone:hover,
+  .drop-zone:focus-visible {
+    border-color: var(--accent);
+  }
+
+  .drop-zone.dragging {
+    border-color: var(--accent);
+    background: var(--chip-bg);
+    transform: scale(1.005);
+  }
+
+  .drop-icon {
+    width: 42px;
+    height: 42px;
+    color: var(--accent);
+    margin-bottom: 0.5rem;
+  }
+
+  .drop-title {
+    margin: 0;
+    font-family: 'Spectral', serif;
+    font-size: 1.35rem;
+    color: var(--text);
+  }
+
+  .drop-sub {
+    margin: 0;
+    color: var(--muted);
+    font-size: 0.95rem;
+  }
+
+  .drop-browse {
+    color: var(--accent);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+
+  .queue {
+    list-style: none;
+    margin: 1.5rem 0 0;
+    padding: 0;
+    display: grid;
+    gap: 0.75rem;
+  }
+
+  .queue-item {
+    display: grid;
+    grid-template-columns: 52px 1fr auto;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.75rem 1rem;
+    background: var(--surface);
+    border: 1px solid var(--border-soft);
+    border-radius: 10px;
+  }
+
+  .thumb {
+    width: 52px;
+    height: 52px;
+    border-radius: 8px;
+    object-fit: cover;
+    background: var(--chip-bg);
+    border: 1px solid var(--border-soft);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--faint);
+    overflow: hidden;
+  }
+
+  .thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .meta {
+    min-width: 0;
+  }
+
+  .name {
+    margin: 0;
+    font-weight: 600;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .detail {
+    margin: 0.15rem 0 0;
+    font-size: 0.85rem;
+    color: var(--muted);
+  }
+
+  .detail a {
+    color: var(--accent);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+
+  .progress {
+    margin-top: 0.5rem;
+    height: 4px;
+    border-radius: 999px;
+    background: var(--chip-bg);
+    overflow: hidden;
+  }
+
+  .progress > span {
+    display: block;
+    height: 100%;
+    width: 0;
+    background: var(--accent);
+    border-radius: inherit;
+    transition: width 0.15s ease;
+  }
+
+  .status {
+    font-size: 0.85rem;
+    font-weight: 600;
+  }
+
+  .status.ok {
+    color: #3d9a50;
+  }
+
+  .status.err {
+    color: var(--accent);
+  }
+
+  .remove {
+    background: none;
+    border: none;
+    padding: 0.35rem;
+    cursor: pointer;
+    color: var(--faint);
+    border-radius: 6px;
+    line-height: 0;
+  }
+
+  .remove:hover {
+    color: var(--accent);
+    background: var(--chip-bg);
+  }
+
+  .side {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .actions {
+    display: flex;
+    gap: 0.75rem;
+    margin-top: 1.5rem;
+    padding-bottom: 3rem;
+  }
+
+  .hidden {
+    display: none;
+  }
+</style>
+
+<script>
+  import { filesApi, ApiError } from '@/api';
+  import { isLoggedIn } from '@/lib/auth';
+  import { staticIcon } from '@/lib/dom';
+
+  interface QueueEntry {
+    file: File;
+    item: HTMLLIElement;
+    statusEl: HTMLSpanElement;
+    barEl: HTMLSpanElement;
+    detailEl: HTMLParagraphElement;
+    done: boolean;
+  }
+
+  const queue: QueueEntry[] = [];
+
+  const dropZone = document.getElementById('drop-zone')!;
+  const fileInput = document.getElementById('file-input') as HTMLInputElement;
+  const queueEl = document.getElementById('queue')!;
+  const actionsEl = document.getElementById('actions')!;
+  const uploadBtn = document.getElementById('upload-btn') as HTMLButtonElement;
+  const clearBtn = document.getElementById('clear-btn')!;
+  const uploadCount = document.getElementById('upload-count')!;
+  const authNotice = document.getElementById('auth-notice')!;
+const uploader = document.getElementById('uploader')!;
+
+  console.log("Logged in:", isLoggedIn());
+  if (!isLoggedIn()) {
+    authNotice.classList.remove('hidden');
+    uploader.classList.add('hidden');
+  }
+
+  const fileIcon = staticIcon(
+    '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/></svg>',
+  );
+
+  const xIcon = staticIcon(
+    '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>',
+  );
+
+  function formatSize(bytes: number): string {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  }
+
+  function refreshActions(): void {
+    const pending = queue.filter((e) => !e.done).length;
+    actionsEl.hidden = queue.length === 0;
+    uploadBtn.disabled = pending === 0;
+    uploadCount.textContent = pending > 0 ? `(${pending})` : '';
+  }
+
+  function addFiles(files: FileList | File[]): void {
+    for (const file of Array.from(files)) {
+      const item = document.createElement('li');
+      item.className = 'queue-item';
+
+      const thumb = document.createElement('div');
+      thumb.className = 'thumb';
+      if (file.type.startsWith('image/')) {
+        const img = document.createElement('img');
+        img.src = URL.createObjectURL(file);
+        img.alt = '';
+        thumb.appendChild(img);
+      } else {
+        thumb.appendChild(fileIcon());
+      }
+
+      const meta = document.createElement('div');
+      meta.className = 'meta';
+      const name = document.createElement('p');
+      name.className = 'name';
+      name.textContent = file.name;
+      const detail = document.createElement('p');
+      detail.className = 'detail';
+      detail.textContent = `${formatSize(file.size)} · ${file.type || 'unknown type'}`;
+      const progress = document.createElement('div');
+      progress.className = 'progress';
+      const bar = document.createElement('span');
+      progress.appendChild(bar);
+      meta.append(name, detail, progress);
+
+      const side = document.createElement('div');
+      side.className = 'side';
+      const status = document.createElement('span');
+      status.className = 'status';
+      const remove = document.createElement('button');
+      remove.type = 'button';
+      remove.className = 'remove';
+      remove.appendChild(xIcon());
+      remove.title = 'Remove';
+      side.append(status, remove);
+
+      item.append(thumb, meta, side);
+      queueEl.appendChild(item);
+
+      const entry: QueueEntry = { file, item, statusEl: status, barEl: bar, detailEl: detail, done: false };
+      remove.addEventListener('click', () => {
+        queue.splice(queue.indexOf(entry), 1);
+        item.remove();
+        refreshActions();
+      });
+
+      queue.push(entry);
+    }
+    refreshActions();
+  }
+
+  async function uploadEntry(entry: QueueEntry): Promise<void> {
+    entry.statusEl.textContent = '…';
+    entry.statusEl.className = 'status';
+    try {
+      const { id } = await filesApi.upload(entry.file, (pct) => {
+        entry.barEl.style.width = `${pct}%`;
+      });
+      entry.barEl.style.width = '100%';
+      entry.done = true;
+      entry.statusEl.textContent = 'Done';
+      entry.statusEl.classList.add('ok');
+      try {
+        const dto = await filesApi.getById(id);
+        entry.detailEl.replaceChildren();
+        const link = document.createElement('a');
+        link.href = dto.url;
+        link.textContent = 'View uploaded file';
+        link.target = '_blank';
+        link.rel = 'noopener';
+        entry.detailEl.appendChild(link);
+      } catch {
+        entry.detailEl.textContent = `Uploaded · id ${id}`;
+      }
+    } catch (err) {
+      entry.statusEl.textContent = 'Failed';
+      entry.statusEl.classList.add('err');
+      if (err instanceof ApiError && err.status === 401) {
+        entry.detailEl.textContent = 'Not logged in — please log in again.';
+      } else if (err instanceof ApiError && err.status === 403) {
+        entry.detailEl.textContent = 'Your account does not have the admin role.';
+      } else if (err instanceof ApiError && err.status === 400) {
+        entry.detailEl.textContent = 'Rejected — file is empty or exceeds the 100 MB limit.';
+      } else {
+        entry.detailEl.textContent = 'Upload failed. Please try again.';
+      }
+    }
+  }
+
+  dropZone.addEventListener('click', () => fileInput.click());
+  dropZone.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      fileInput.click();
+    }
+  });
+
+  fileInput.addEventListener('change', () => {
+    if (fileInput.files) addFiles(fileInput.files);
+    fileInput.value = '';
+  });
+
+  ['dragenter', 'dragover'].forEach((evt) =>
+    dropZone.addEventListener(evt, (e) => {
+      e.preventDefault();
+      dropZone.classList.add('dragging');
+    }),
+  );
+  ['dragleave', 'drop'].forEach((evt) =>
+    dropZone.addEventListener(evt, (e) => {
+      e.preventDefault();
+      dropZone.classList.remove('dragging');
+    }),
+  );
+  dropZone.addEventListener('drop', (e) => {
+    const dt = (e as DragEvent).dataTransfer;
+    if (dt?.files.length) addFiles(dt.files);
+  });
+
+  uploadBtn.addEventListener('click', async () => {
+    uploadBtn.disabled = true;
+    for (const entry of queue.filter((e) => !e.done)) {
+      await uploadEntry(entry);
+    }
+    refreshActions();
+  });
+
+  clearBtn.addEventListener('click', () => {
+    queue.length = 0;
+    queueEl.replaceChildren();
+    refreshActions();
+  });
+</script>

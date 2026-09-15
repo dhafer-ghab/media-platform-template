@@ -113,53 +113,71 @@ const searchIndex = {
 
       if (artists.length > 0) {
         artistsSec.hidden = false;
-        artistsHost.innerHTML = artists
-          .map((a) => {
-            const cells = Array.from({ length: 3 })
-              .map((_, i) => {
-                const s = a.sample[i];
-                const style = s ? `background:${s.bg};` : 'background:var(--surface);';
-                return `<div class="artist-card__cell" style="${style}"></div>`;
-              })
-              .join('');
-            return `
-              <a class="artist-card" href="/artists/${a.slug}">
-                <div class="artist-card__grid">${cells}</div>
-                <div class="artist-card__name-only">${escapeHtml(a.name)}</div>
-                <div class="artist-card__loc">${escapeHtml(a.location)}</div>
-              </a>
-            `;
-          })
-          .join('');
+        artistsHost.replaceChildren(
+          ...artists.map((a) => {
+            const grid = document.createElement('div');
+            grid.className = 'artist-card__grid';
+            for (let i = 0; i < 3; i++) {
+              const cell = document.createElement('div');
+              cell.className = 'artist-card__cell';
+              cell.style.background = a.sample[i]?.bg ?? 'var(--surface)';
+              grid.appendChild(cell);
+            }
+
+            const nameEl = document.createElement('div');
+            nameEl.className = 'artist-card__name-only';
+            nameEl.textContent = a.name;
+
+            const locEl = document.createElement('div');
+            locEl.className = 'artist-card__loc';
+            locEl.textContent = a.location;
+
+            const card = document.createElement('a');
+            card.className = 'artist-card';
+            card.href = `/artists/${a.slug}`;
+            card.append(grid, nameEl, locEl);
+            return card;
+          }),
+        );
       }
 
       if (works.length > 0) {
         worksSec.hidden = false;
-        worksHost.innerHTML = works
-          .map(
-            (w) => `
-              <a class="work-card work-card--masonry" href="/works/${w.slug}">
-                <div class="work-card__art" style="background:${w.bg};aspect-ratio:${w.ar};"></div>
-                <div class="work-card__meta">
-                  <div class="work-card__meta-l">
-                    <div class="work-card__title">${escapeHtml(w.title)}</div>
-                    <div class="work-card__sub">${escapeHtml(w.artistName)}</div>
-                  </div>
-                  <div class="work-card__year">${w.year}</div>
-                </div>
-              </a>
-            `,
-          )
-          .join('');
-      }
-    }
+        worksHost.replaceChildren(
+          ...works.map((w) => {
+            const art = document.createElement('div');
+            art.className = 'work-card__art';
+            art.style.background = w.bg;
+            art.style.aspectRatio = String(w.ar);
 
-    function escapeHtml(s: string): string {
-      return s
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
+            const titleEl = document.createElement('div');
+            titleEl.className = 'work-card__title';
+            titleEl.textContent = w.title;
+
+            const subEl = document.createElement('div');
+            subEl.className = 'work-card__sub';
+            subEl.textContent = w.artistName;
+
+            const metaL = document.createElement('div');
+            metaL.className = 'work-card__meta-l';
+            metaL.append(titleEl, subEl);
+
+            const yearEl = document.createElement('div');
+            yearEl.className = 'work-card__year';
+            yearEl.textContent = String(w.year);
+
+            const meta = document.createElement('div');
+            meta.className = 'work-card__meta';
+            meta.append(metaL, yearEl);
+
+            const card = document.createElement('a');
+            card.className = 'work-card work-card--masonry';
+            card.href = `/works/${w.slug}`;
+            card.append(art, meta);
+            return card;
+          }),
+        );
+      }
     }
   </script>
 </Layout>

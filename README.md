@@ -22,7 +22,7 @@ The frontend is built with Astro, providing a modern, high-performance web exper
 
 - create migraitons, example for user module:
 ```powershell
-dotnet ef migrations add Initial --project .\src\Users.Infrastracture\Users.Infrastracture.csproj --startup-project .\src\Host.WebApi\Host.WebApi.csproj -o Migrations
+dotnet ef migrations add Initial --project .\src\Users.Infrastracture\Users.Infrastracture.csproj --startup-project .\src\Host.WebApi\Host.WebApi.csproj --context UsersDbContext -o Migrations
 ```
 
 start container without aspire (for persistent container aspire doesnt allow port mapping and persistent containers are acting up)
