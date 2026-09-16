@@ -7,6 +7,7 @@ using Users.Application.Abstractions;
 using Users.Application.Messaging;
 using Users.Domain.Abstractions;
 using Users.Infrastracture.Persistence;
+using Users.Infrastracture.Seeding;
 using Users.Infrastracture.Security;
 
 namespace Users.Infrastracture;
@@ -48,6 +49,8 @@ internal static class DependencyInjection
         services.AddScoped<IPasswordHasher, PasswordHasher>();
 
         services.AddScoped<IDomainEventDispatcher, MediatRDomainEventDispatcher>();
+        services.Configure<UserSeedOptions>(configuration.GetSection(UserSeedOptions.SectionName));
+        services.AddScoped<UserSeeder>();
 
         return services;
     }

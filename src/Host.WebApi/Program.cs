@@ -6,6 +6,7 @@ using Storage.Presentation;
 using Scalar.AspNetCore;
 using System.Text;
 using System.Text.Json.Serialization;
+using Users.Infrastracture.Seeding;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -46,6 +47,7 @@ if (app.Environment.IsDevelopment())
 }
 
 await app.ApplyMigrations();
+await app.Services.SeedUsersAsync();
 
 app.UseCors(MyAllowSpecificOrigins);
 app.UseHttpsRedirection();
