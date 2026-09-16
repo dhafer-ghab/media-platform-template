@@ -4,12 +4,9 @@ namespace Users.Infrastracture.Seeding;
 
 public static class UsersInitializationExtensions
 {
-    public static async Task SeedUsersAsync(
-        this IServiceProvider services,
-        CancellationToken cancellationToken = default)
+    public static IServiceCollection AddUsersSeeding(this IServiceCollection services)
     {
-        await using var scope = services.CreateAsyncScope();
-        var seeder = scope.ServiceProvider.GetRequiredService<UserSeeder>();
-        await seeder.SeedAsync(cancellationToken);
+        services.AddHostedService<UserSeedHostedService>();
+        return services;
     }
 }

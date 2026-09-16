@@ -32,10 +32,10 @@ docker run --name postgres -e POSTGRES_PASSWORD=password -p 5432:5432 -v ./postg
 
 ## Development user seeding
 
-After migrations, the API can create one `Admin`, one `User`, and one `PremiumUser`.
-Seeding is disabled unless `UserSeed:Enabled` is explicitly set to `true`. Configure the
-accounts with .NET User Secrets or environment variables; no seed credentials are stored
-in the repository.
+In the `Development` environment, the API can create one `Admin`, one `User`, and one
+`PremiumUser` after migrations. Seeding is disabled unless `UserSeed:Enabled` is explicitly
+set to `true`, and it is never registered outside development. Configure the accounts with
+.NET User Secrets or environment variables; no seed credentials are stored in the repository.
 
 Each account uses these configuration keys, where `{index}` is `0`, `1`, or `2`:
 

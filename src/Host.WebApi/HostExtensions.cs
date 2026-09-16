@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Storage.Infrastracture.Persistence;
 using Users.Infrastracture.Persistence;
 using Users.Infrastracture;
+using Users.Infrastracture.Seeding;
 using Storage.Infrastracture;
 using Storage.Presentation;
 using Users.Presentation;
@@ -25,6 +26,10 @@ public static class HostExtensions
         builder.Services.AddUsersPresentation();
 
         builder.Services.AddMessageBus();
+
+        // Hosted services start in registration order, so seeding runs after the message bus.
+        if (builder.Environment.IsDevelopment())
+            builder.Services.AddUsersSeeding();
 
         // storage module
         builder.Services.AddStorageInfrastructure(builder.Configuration);
