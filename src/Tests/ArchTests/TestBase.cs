@@ -1,5 +1,7 @@
 using System.Reflection;
 using SharedKernal.Entities;
+using Posts.Application.Abstractions;
+using Posts.Domain;
 using Storage.Application.Abstractions;
 using Storage.Domain;
 using Users.Application.Abstractions;
@@ -27,6 +29,20 @@ public abstract class TestBase
 {
     // ── Building Blocks ──────────────────────────────────────────
     protected static readonly Assembly SharedKernalAssembly = typeof(BaseEntity).Assembly;
+
+    // ── Posts Module ─────────────────────────────────────────────
+    protected static readonly Assembly PostsDomainAssembly       = typeof(Post).Assembly;
+    protected static readonly Assembly PostsApplicationAssembly  = typeof(IPostRepository).Assembly;
+    protected static readonly Assembly PostsInfraAssembly        = typeof(Posts.Infrastructure.DependencyInjection).Assembly;
+    protected static readonly Assembly PostsPresentationAssembly = typeof(Posts.Presentation.Extension).Assembly;
+
+    protected static readonly IEnumerable<Assembly> PostsModuleAssemblies =
+    [
+        PostsDomainAssembly,
+        PostsApplicationAssembly,
+        PostsInfraAssembly,
+        PostsPresentationAssembly
+    ];
 
     // ── Users Module ─────────────────────────────────────────────
     protected static readonly Assembly UsersDomainAssembly       = typeof(User).Assembly;

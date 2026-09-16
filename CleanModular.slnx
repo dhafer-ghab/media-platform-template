@@ -12,7 +12,12 @@
     <Project Path="src/Host.WebApi/Host.WebApi.csproj" />
   </Folder>
   <Folder Name="/src/Modules/" />
-  <Folder Name="/src/Modules/Posts/" />
+  <Folder Name="/src/Modules/Posts/">
+    <Project Path="src/Posts.Domain/Posts.Domain.csproj" />
+    <Project Path="src/Posts.Application/Posts.Application.csproj" />
+    <Project Path="src/Posts.Infrastructure/Posts.Infrastructure.csproj" />
+    <Project Path="src/Posts.Presentation/Posts.Presentation.csproj" />
+  </Folder>
   <Folder Name="/src/Modules/Storage/">
     <Project Path="src/Storage.Domain/Storage.Domain.csproj" Id="a1b2c3d4-e5f6-7890-abcd-ef1234567890" />
     <Project Path="src/Storage.Application/Storage.Application.csproj" Id="b2c3d4e5-f6a7-8901-bcde-f12345678901" />
@@ -32,9 +37,11 @@
     <Project Path="src/Tests/ArchTests/CleanModular.ArchTests.csproj" />
   </Folder>
   <Folder Name="/src/Tests/IntegrationTests/">
+    <Project Path="src/Tests/IntegrationTests/Posts.IntegrationTests/Posts.IntegrationTests.csproj" />
     <Project Path="src/Tests/IntegrationTests/Users.IntegrationTests/Users.IntegrationTests.csproj" />
   </Folder>
   <Folder Name="/src/Tests/UnitTests/">
+    <Project Path="src/Tests/UnitTests/Posts.UnitTests/Posts.UnitTests.csproj" />
     <Project Path="src/Tests/UnitTests/Users.Domain.UnitTests/Users.Domain.UnitTests.csproj" />
     <Project Path="src/Tests/UnitTests/Users.Presentation.UnitTests/Users.Presentation.UnitTests.csproj" />
   </Folder>

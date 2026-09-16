@@ -1,5 +1,8 @@
 using MassTransit;
 using Microsoft.EntityFrameworkCore;
+using Posts.Infrastructure;
+using Posts.Infrastructure.Persistence;
+using Posts.Presentation;
 using Storage.Infrastracture.Persistence;
 using Users.Infrastracture.Persistence;
 using Users.Infrastracture;
@@ -16,6 +19,7 @@ public static class HostExtensions
     {
         await MigrateModuleDbAsync<UsersDbContext>(app);
         await MigrateModuleDbAsync<StorageDbContext>(app);
+        await MigrateModuleDbAsync<PostsDbContext>(app);
     }
 
     public static TBuilder RegisterModules<TBuilder>(this TBuilder builder) where TBuilder : IHostApplicationBuilder
@@ -29,6 +33,10 @@ public static class HostExtensions
         // storage module
         builder.Services.AddStorageInfrastructure(builder.Configuration);
         builder.Services.AddStoragePresentation();
+
+        // Posts owns public discovery data and remains isolated from Users and Storage.
+        builder.Services.AddPostsInfrastructure(builder.Configuration);
+        builder.Services.AddPostsPresentation();
 
 
         return builder;
