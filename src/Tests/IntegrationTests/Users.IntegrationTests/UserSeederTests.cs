@@ -1,109 +1,129 @@
-using Microsoft.Extensions.Options;
-using SharedKernal.Results;
+using Microsoft.EntityFrameworkCore;
 using SharedKernel.Entities.Enums;
-using Users.Application.Abstractions;
-using Users.Domain;
 using Users.Domain.Abstractions;
+using Users.Infrastracture.Persistence;
 using Users.Infrastracture.Seeding;
 
 namespace Users.IntegrationTests;
 
-public sealed class UserSeederTests
+[Collection(PostgreSqlCollection.Name)]
+public sealed class UserSeederTests(PostgreSqlFixture fixture) : IAsyncLifetime
 {
-    [Fact]
-    public async Task SeedAsync_AddsTheThreeConfiguredUsers()
+    public async Task InitializeAsync()
     {
-        var repository = new FakeUserRepository();
+        await using var context = new UsersDbContext(fixture.DbContextOptions);
+        await context.Users.ExecuteDeleteAsync();
+    }
 
-        await CreateSeeder(repository).SeedAsync();
+    public Task DisposeAsync() => Task.CompletedTask;
 
-        Assert.Equal(3, repository.Users.Count);
-        Assert.Equal(1, repository.SaveCalls);
-        Assert.Equal(
-            [Role.Admin, Role.User, Role.PremiumUser],
-            repository.Users.Select(user => user.Role));
-        Assert.All(repository.Users, user => Assert.StartsWith("hashed:", user.Password.HashedValue));
+    [Fact]
+    public async Task MigrateAsync_SeedsConfiguredUsers()
+    {
+        await using var context = CreateContext(CreateOptions());
+
+        await context.Database.MigrateAsync();
+
+        var users = await context.Users.OrderBy(user => user.Role).ToListAsync();
+        Assert.Equal(3, users.Count);
+        Assert.Equal([Role.Admin, Role.PremiumUser, Role.User], users.Select(user => user.Role));
+        Assert.All(users, user => Assert.StartsWith("hashed:", user.Password.HashedValue));
     }
 
     [Fact]
-    public async Task SeedAsync_IsIdempotentByNormalizedEmail()
+    public void Migrate_UsesSynchronousSeeder()
     {
-        var repository = new FakeUserRepository();
-        var seeder = CreateSeeder(repository);
+        using var context = CreateContext(CreateOptions());
 
-        await seeder.SeedAsync();
-        await seeder.SeedAsync();
+        context.Database.Migrate();
 
-        Assert.Equal(3, repository.Users.Count);
-        Assert.Equal(1, repository.SaveCalls);
+        Assert.Equal(3, context.Users.Count());
     }
 
     [Fact]
-    public async Task SeedAsync_DoesNothingWhenDisabled()
+    public async Task MigrateAsync_IsIdempotent()
     {
-        var repository = new FakeUserRepository();
-        var options = Options.Create(new UserSeedOptions { Enabled = false });
+        var options = CreateOptions();
 
-        await new UserSeeder(repository, FakePasswordHasher.Instance, options).SeedAsync();
+        await using (var firstContext = CreateContext(options))
+            await firstContext.Database.MigrateAsync();
 
-        Assert.Empty(repository.Users);
-        Assert.Equal(0, repository.SaveCalls);
+        await using (var secondContext = CreateContext(options))
+            await secondContext.Database.MigrateAsync();
+
+        await using var verificationContext = new UsersDbContext(fixture.DbContextOptions);
+        Assert.Equal(3, await verificationContext.Users.CountAsync());
     }
 
     [Fact]
-    public async Task SeedAsync_RejectsMissingRequiredRole()
+    public async Task MigrateAsync_DoesNothingWhenDisabled()
     {
-        var repository = new FakeUserRepository();
+        await using var context = CreateContext(CreateOptions(enabled: false));
+
+        await context.Database.MigrateAsync();
+
+        Assert.Empty(await context.Users.ToListAsync());
+    }
+
+    [Fact]
+    public async Task MigrateAsync_RejectsMissingRequiredRole()
+    {
         var definitions = CreateDefinitions();
         definitions[2] = definitions[2] with { Role = Role.User };
+        await using var context = CreateContext(CreateOptions(definitions: definitions));
 
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(
-            () => CreateSeeder(repository, definitions).SeedAsync());
+            () => context.Database.MigrateAsync());
 
         Assert.Contains("exactly one Admin, one User, and one PremiumUser", exception.Message);
-        Assert.Empty(repository.Users);
     }
 
     [Fact]
-    public async Task SeedAsync_RejectsDuplicateConfiguredEmails()
+    public async Task MigrateAsync_RejectsDuplicateConfiguredEmails()
     {
-        var repository = new FakeUserRepository();
         var definitions = CreateDefinitions();
         definitions[2] = definitions[2] with { Email = definitions[0].Email.ToUpperInvariant() };
+        await using var context = CreateContext(CreateOptions(definitions: definitions));
 
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(
-            () => CreateSeeder(repository, definitions).SeedAsync());
+            () => context.Database.MigrateAsync());
 
         Assert.Contains("email addresses must be unique", exception.Message);
-        Assert.Empty(repository.Users);
     }
 
     [Fact]
-    public async Task SeedAsync_RejectsInvalidUserData()
+    public async Task MigrateAsync_RejectsInvalidUserData()
     {
-        var repository = new FakeUserRepository();
         var definitions = CreateDefinitions();
         definitions[0] = definitions[0] with { Email = "not-an-email" };
+        await using var context = CreateContext(CreateOptions(definitions: definitions));
 
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(
-            () => CreateSeeder(repository, definitions).SeedAsync());
+            () => context.Database.MigrateAsync());
 
         Assert.Contains("Invalid seed user", exception.Message);
-        Assert.Empty(repository.Users);
     }
 
-    private static UserSeeder CreateSeeder(
-        FakeUserRepository repository,
+    private DbContextOptions<UsersDbContext> CreateOptions(
+        bool enabled = true,
         List<UserSeedDefinition>? definitions = null)
     {
-        var options = Options.Create(new UserSeedOptions
-        {
-            Enabled = true,
-            Users = definitions ?? CreateDefinitions()
-        });
+        var builder = new DbContextOptionsBuilder<UsersDbContext>();
+        builder.UseNpgsql(fixture.ConnectionString, npgsql =>
+            npgsql.MigrationsHistoryTable("__UsersMigrations", "Users"));
+        UserSeeder.Configure(
+            builder,
+            new UserSeedOptions
+            {
+                Enabled = enabled,
+                Users = definitions ?? CreateDefinitions()
+            },
+            FakePasswordHasher.Instance);
 
-        return new UserSeeder(repository, FakePasswordHasher.Instance, options);
+        return builder.Options;
     }
+
+    private static UsersDbContext CreateContext(DbContextOptions<UsersDbContext> options) => new(options);
 
     private static List<UserSeedDefinition> CreateDefinitions() =>
     [
@@ -112,45 +132,12 @@ public sealed class UserSeederTests
         new() { Name = "Premium User", Email = "premium@example.test", Password = "Password123", Role = Role.PremiumUser }
     ];
 
-    private sealed class FakeUserRepository : IUserRepository
-    {
-        public List<User> Users { get; } = [];
-        public int SaveCalls { get; private set; }
-
-        public Task<User?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default) =>
-            Task.FromResult(Users.SingleOrDefault(user => user.Id == id));
-
-        public Task<User?> GetByEmailAsync(string email, CancellationToken cancellationToken = default) =>
-            Task.FromResult(Users.SingleOrDefault(user =>
-                string.Equals(user.Email.Value, email.Trim(), StringComparison.OrdinalIgnoreCase)));
-
-        public Task<IReadOnlyList<User>> GetAllAsync(CancellationToken cancellationToken = default) =>
-            Task.FromResult<IReadOnlyList<User>>(Users);
-
-        public Task AddAsync(User user, CancellationToken cancellationToken = default)
-        {
-            Users.Add(user);
-            return Task.CompletedTask;
-        }
-
-        public void Update(User user)
-        {
-        }
-
-        public void Remove(User user) => Users.Remove(user);
-
-        public Task<Result<int>> SaveChangesAsync(CancellationToken cancellationToken = default)
-        {
-            SaveCalls++;
-            return Task.FromResult<Result<int>>(Users.Count);
-        }
-    }
-
     private sealed class FakePasswordHasher : IPasswordHasher
     {
         public static readonly FakePasswordHasher Instance = new();
 
         public string Hash(string plainTextPassword) => $"hashed:{plainTextPassword}";
+
         public bool Verify(string plainTextPassword, string hashedPassword) =>
             hashedPassword == Hash(plainTextPassword);
 

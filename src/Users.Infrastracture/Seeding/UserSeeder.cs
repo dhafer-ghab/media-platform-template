@@ -1,15 +1,12 @@
-using Microsoft.Extensions.Options;
+using Microsoft.EntityFrameworkCore;
 using SharedKernel.Entities.Enums;
-using Users.Application.Abstractions;
 using Users.Domain;
 using Users.Domain.Abstractions;
+using Users.Infrastracture.Persistence;
 
 namespace Users.Infrastracture.Seeding;
 
-internal sealed class UserSeeder(
-    IUserRepository userRepository,
-    IPasswordHasher passwordHasher,
-    IOptions<UserSeedOptions> options)
+internal static class UserSeeder
 {
     private static readonly HashSet<Role> RequiredRoles =
     [
@@ -18,20 +15,70 @@ internal sealed class UserSeeder(
         Role.PremiumUser
     ];
 
-    public async Task SeedAsync(CancellationToken cancellationToken = default)
+    internal static void Configure(
+        DbContextOptionsBuilder options,
+        UserSeedOptions seedOptions,
+        IPasswordHasher passwordHasher)
     {
-        var seedOptions = options.Value;
-        if (!seedOptions.Enabled)
+        options
+            .UseSeeding((context, _) =>
+                Seed((UsersDbContext)context, seedOptions, passwordHasher))
+            .UseAsyncSeeding((context, _, cancellationToken) =>
+                SeedAsync((UsersDbContext)context, seedOptions, passwordHasher, cancellationToken));
+    }
+
+    private static void Seed(
+        UsersDbContext context,
+        UserSeedOptions options,
+        IPasswordHasher passwordHasher)
+    {
+        if (!options.Enabled)
             return;
 
-        Validate(seedOptions.Users);
+        Validate(options.Users);
 
-        var usersAdded = false;
+        var existingEmails = context.Users
+            .Select(user => user.Email.Value)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-        foreach (var definition in seedOptions.Users)
+        AddMissingUsers(context, options.Users, existingEmails, passwordHasher);
+
+        if (context.ChangeTracker.HasChanges())
+            context.SaveChanges();
+    }
+
+    private static async Task SeedAsync(
+        UsersDbContext context,
+        UserSeedOptions options,
+        IPasswordHasher passwordHasher,
+        CancellationToken cancellationToken)
+    {
+        if (!options.Enabled)
+            return;
+
+        Validate(options.Users);
+
+        var existingEmails = (await context.Users
+                .Select(user => user.Email.Value)
+                .ToListAsync(cancellationToken))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        AddMissingUsers(context, options.Users, existingEmails, passwordHasher);
+
+        if (context.ChangeTracker.HasChanges())
+            await context.SaveChangesAsync(cancellationToken);
+    }
+
+    private static void AddMissingUsers(
+        UsersDbContext context,
+        IEnumerable<UserSeedDefinition> definitions,
+        ISet<string> existingEmails,
+        IPasswordHasher passwordHasher)
+    {
+        foreach (var definition in definitions)
         {
             var normalizedEmail = definition.Email.Trim().ToLowerInvariant();
-            if (await userRepository.GetByEmailAsync(normalizedEmail, cancellationToken) is not null)
+            if (!existingEmails.Add(normalizedEmail))
                 continue;
 
             var result = User.Create(
@@ -47,18 +94,8 @@ internal sealed class UserSeeder(
                 throw new InvalidOperationException($"Invalid seed user '{normalizedEmail}': {errors}");
             }
 
-            await userRepository.AddAsync(result.Value, cancellationToken);
-            usersAdded = true;
-        }
-
-        if (!usersAdded)
-            return;
-
-        var saveResult = await userRepository.SaveChangesAsync(cancellationToken);
-        if (saveResult.IsFailure)
-        {
-            var errors = string.Join("; ", saveResult.Errors.Select(error => $"{error.Code}: {error.Message}"));
-            throw new InvalidOperationException($"Could not save seeded users: {errors}");
+            result.Value.ClearDomainEvents();
+            context.Users.Add(result.Value);
         }
     }
 
