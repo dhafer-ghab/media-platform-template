@@ -1,0 +1,50 @@
+---
+import PostCard from './PostCard.astro';
+import type { PostSummary } from '@/lib/server/posts';
+
+interface Props {
+  posts: PostSummary[];
+  emptyMessage?: string;
+}
+
+const { posts, emptyMessage = 'No published works match this selection.' } = Astro.props;
+---
+
+{posts.length > 0 ? (
+  <div class="post-grid" id="results">
+    {posts.map((post) => <PostCard post={post} />)}
+  </div>
+) : (
+  <div class="empty-state" id="results">
+    <p>{emptyMessage}</p>
+    <a class="btn btn-ghost" href="/explore">Explore all works</a>
+  </div>
+)}
+
+<style>
+  .post-grid {
+    column-count: 1;
+    column-gap: 28px;
+  }
+  .empty-state {
+    border: 1px solid var(--border-soft);
+    padding: clamp(32px, 6vw, 72px);
+    text-align: center;
+  }
+  .empty-state p {
+    color: var(--muted);
+    font-family: 'Spectral', serif;
+    font-size: clamp(20px, 3vw, 30px);
+    font-style: italic;
+    margin: 0 0 24px;
+  }
+  @media (min-width: 620px) {
+    .post-grid { column-count: 2; }
+  }
+  @media (min-width: 920px) {
+    .post-grid { column-count: 3; }
+  }
+  @media (min-width: 1240px) {
+    .post-grid { column-count: 4; }
+  }
+</style>

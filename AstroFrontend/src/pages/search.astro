@@ -1,321 +1,71 @@
 ---
 import Layout from '@/layouts/Layout.astro';
-import { artworks, artists, artworksByArtist } from '@/data/gallery';
+import { cleanFilter, parseSort, setCollectionCache } from '@/lib/server/page';
 
-const searchIndex = {
-  works: artworks.map((w) => ({
-    title: w.title,
-    artistName: w.artistName,
-    year: w.year,
-    bg: w.bg,
-    ar: w.ar,
-    slug: w.slug,
-    haystack: `${w.title} ${w.artistName} ${w.medium} ${w.category} ${w.tags.join(' ')}`.toLowerCase(),
-  })),
-  artists: artists.map((a) => ({
-    name: a.name,
-    location: a.location,
-    slug: a.slug,
-    sample: artworksByArtist(a.id).slice(0, 3).map((w) => ({ bg: w.bg })),
-    haystack: `${a.name} ${a.location} ${a.disciplines}`.toLowerCase(),
-  })),
-};
+const keyword = cleanFilter(Astro.url.searchParams.get('q'), 100);
+const sort = parseSort(Astro.url.searchParams.get('sort'));
+if (keyword) {
+  if (sort === 'newest') return Astro.redirect(`/search/${encodeURIComponent(keyword)}`);
+  return Astro.redirect(`/search/${encodeURIComponent(keyword)}?sort=${encodeURIComponent(sort)}`);
+}
+
+setCollectionCache(Astro.response.headers);
 ---
 
-<Layout title="Search — Verso">
-  <main class="container page">
+<Layout
+  title="Search published work — Verso"
+  description="Search the Verso index by title, description or category."
+  robots="noindex,follow"
+>
+  <main class="container search-landing">
     <div class="eyebrow">Search</div>
-    <h1 class="page__h1" data-search-h1>&ldquo;<span data-search-q></span>&rdquo;</h1>
-    <p class="page__lede"><span data-search-count>0</span> <span data-search-noun>results</span></p>
-
-    <p class="empty" data-search-empty hidden>
-      Nothing found. Try a medium, an artist, or a tag like &ldquo;Minimal&rdquo;.
-    </p>
-
-    <p class="empty" data-search-prompt hidden>
-      Type a query in the header search to find artists and works.
-    </p>
-
-    <div class="section" data-search-artists-section hidden>
-      <h2 class="section__h2">Artists</h2>
-      <div class="artists-grid" data-search-artists></div>
-    </div>
-
-    <div class="section" data-search-works-section hidden>
-      <h2 class="section__h2">Works</h2>
-      <div class="masonry" data-search-works></div>
-    </div>
+    <h1 class="h-display">Find a work.</h1>
+    <p>Search published posts by keyword, title, description or category.</p>
+    <form action="/search" method="get" role="search">
+      <label for="search-query">Keyword</label>
+      <div>
+        <input id="search-query" type="search" name="q" required maxlength="100" autofocus />
+        <button class="btn btn-primary" type="submit">Search</button>
+      </div>
+    </form>
   </main>
-
-  <script type="application/json" data-search-index set:html={JSON.stringify(searchIndex)} />
-
-  <script>
-    type WorkRow = {
-      title: string;
-      artistName: string;
-      year: number;
-      bg: string;
-      ar: number;
-      slug: string;
-      haystack: string;
-    };
-    type ArtistRow = {
-      name: string;
-      location: string;
-      slug: string;
-      sample: { bg: string }[];
-      haystack: string;
-    };
-    type Index = { works: WorkRow[]; artists: ArtistRow[] };
-
-    const indexEl = document.querySelector<HTMLScriptElement>('[data-search-index]');
-    if (!indexEl) throw new Error('search index missing');
-    const idx = JSON.parse(indexEl.textContent ?? '{}') as Index;
-
-    const $ = <T extends Element>(sel: string): T => {
-      const el = document.querySelector<T>(sel);
-      if (!el) throw new Error(`missing ${sel}`);
-      return el;
-    };
-
-    const qSpan = $('[data-search-q]') as HTMLElement;
-    const h1 = $('[data-search-h1]') as HTMLElement;
-    const countEl = $('[data-search-count]') as HTMLElement;
-    const nounEl = $('[data-search-noun]') as HTMLElement;
-    const emptyEl = $('[data-search-empty]') as HTMLElement;
-    const promptEl = $('[data-search-prompt]') as HTMLElement;
-    const artistsSec = $('[data-search-artists-section]') as HTMLElement;
-    const worksSec = $('[data-search-works-section]') as HTMLElement;
-    const artistsHost = $('[data-search-artists]') as HTMLElement;
-    const worksHost = $('[data-search-works]') as HTMLElement;
-
-    const params = new URLSearchParams(window.location.search);
-    const q = (params.get('q') ?? '').trim();
-
-    if (!q) {
-      h1.hidden = true;
-      countEl.parentElement!.hidden = true;
-      promptEl.hidden = false;
-      document.title = 'Search — Verso';
-    } else {
-      qSpan.textContent = q;
-      document.title = `“${q}” — Verso`;
-      const qLower = q.toLowerCase();
-      const works = idx.works.filter((w) => w.haystack.includes(qLower));
-      const artists = idx.artists.filter((a) => a.haystack.includes(qLower));
-      const total = works.length + artists.length;
-      countEl.textContent = String(total);
-      nounEl.textContent = total === 1 ? 'result' : 'results';
-
-      if (total === 0) {
-        emptyEl.hidden = false;
-      }
-
-      if (artists.length > 0) {
-        artistsSec.hidden = false;
-        artistsHost.replaceChildren(
-          ...artists.map((a) => {
-            const grid = document.createElement('div');
-            grid.className = 'artist-card__grid';
-            for (let i = 0; i < 3; i++) {
-              const cell = document.createElement('div');
-              cell.className = 'artist-card__cell';
-              cell.style.background = a.sample[i]?.bg ?? 'var(--surface)';
-              grid.appendChild(cell);
-            }
-
-            const nameEl = document.createElement('div');
-            nameEl.className = 'artist-card__name-only';
-            nameEl.textContent = a.name;
-
-            const locEl = document.createElement('div');
-            locEl.className = 'artist-card__loc';
-            locEl.textContent = a.location;
-
-            const card = document.createElement('a');
-            card.className = 'artist-card';
-            card.href = `/artists/${a.slug}`;
-            card.append(grid, nameEl, locEl);
-            return card;
-          }),
-        );
-      }
-
-      if (works.length > 0) {
-        worksSec.hidden = false;
-        worksHost.replaceChildren(
-          ...works.map((w) => {
-            const art = document.createElement('div');
-            art.className = 'work-card__art';
-            art.style.background = w.bg;
-            art.style.aspectRatio = String(w.ar);
-
-            const titleEl = document.createElement('div');
-            titleEl.className = 'work-card__title';
-            titleEl.textContent = w.title;
-
-            const subEl = document.createElement('div');
-            subEl.className = 'work-card__sub';
-            subEl.textContent = w.artistName;
-
-            const metaL = document.createElement('div');
-            metaL.className = 'work-card__meta-l';
-            metaL.append(titleEl, subEl);
-
-            const yearEl = document.createElement('div');
-            yearEl.className = 'work-card__year';
-            yearEl.textContent = String(w.year);
-
-            const meta = document.createElement('div');
-            meta.className = 'work-card__meta';
-            meta.append(metaL, yearEl);
-
-            const card = document.createElement('a');
-            card.className = 'work-card work-card--masonry';
-            card.href = `/works/${w.slug}`;
-            card.append(art, meta);
-            return card;
-          }),
-        );
-      }
-    }
-  </script>
 </Layout>
 
 <style>
-  .page {
-    padding: clamp(40px, 6vw, 80px) 0;
+  .search-landing {
+    padding: clamp(54px, 9vw, 120px) 0;
   }
-  .page__h1 {
-    font-family: 'Spectral', serif;
-    font-weight: 300;
-    font-style: italic;
-    font-size: clamp(30px, 5vw, 64px);
-    line-height: 1.02;
-    margin: 0.16em 0 0;
-    letter-spacing: -0.02em;
+  h1 {
+    font-size: clamp(48px, 8vw, 108px);
+    margin-top: 0.15em;
   }
-  .page__lede {
+  p {
     color: var(--muted);
-    font-size: 15px;
-    margin-top: 14px;
-  }
-  .empty {
-    color: var(--faint);
-    font-style: italic;
-    font-family: 'Spectral', serif;
-    font-size: 20px;
-    margin-top: 40px;
-  }
-  .section {
-    margin-top: 48px;
-  }
-  .section__h2 {
-    font-size: 11px;
-    font-weight: 600;
-    letter-spacing: 0.16em;
-    text-transform: uppercase;
-    color: var(--faint);
-    margin: 0 0 22px;
-  }
-  .artists-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-    gap: 32px;
-  }
-  .masonry {
-    column-count: 2;
-    column-gap: 30px;
-  }
-  @media (min-width: 700px) {
-    .masonry {
-      column-count: 3;
-    }
-  }
-  @media (min-width: 1100px) {
-    .masonry {
-      column-count: 4;
-    }
-  }
-</style>
-
-<style is:global>
-  .artist-card {
-    cursor: pointer;
-    display: block;
-    transition: opacity 0.2s;
-  }
-  .artist-card:hover {
-    opacity: 0.92;
-  }
-  .artist-card__grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 6px;
-  }
-  .artist-card__cell {
-    width: 100%;
-    aspect-ratio: 1;
-    border: 1px solid var(--hairline);
-  }
-  .artist-card__name-only {
-    font-family: 'Spectral', serif;
-    font-size: 21px;
-    margin-top: 13px;
-    color: var(--text);
-  }
-  .artist-card__loc {
-    font-size: 11px;
-    font-weight: 500;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: var(--muted);
-    margin-top: 6px;
-  }
-  .work-card {
-    cursor: pointer;
-    display: block;
-    transition: opacity 0.25s;
-  }
-  .work-card:hover {
-    opacity: 0.86;
-  }
-  .work-card--masonry {
-    break-inside: avoid;
-    margin: 0 0 30px;
-  }
-  .work-card__art {
-    width: 100%;
-    border: 1px solid var(--hairline);
-  }
-  .work-card__meta {
-    display: flex;
-    justify-content: space-between;
-    gap: 12px;
-    align-items: baseline;
-    margin-top: 12px;
-  }
-  .work-card__meta-l {
-    min-width: 0;
-  }
-  .work-card__title {
-    font-family: 'Spectral', serif;
-    font-style: italic;
     font-size: 17px;
-    line-height: 1.2;
+    line-height: 1.6;
+    max-width: 48ch;
   }
-  .work-card__sub {
-    font-size: 11px;
-    font-weight: 500;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
+  form {
+    display: grid;
+    gap: 9px;
+    margin-top: 36px;
+    max-width: 720px;
+  }
+  label {
     color: var(--muted);
-    margin-top: 5px;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
   }
-  .work-card__year {
-    font-size: 11px;
-    font-weight: 500;
-    color: var(--faint);
-    white-space: nowrap;
+  form > div { display: flex; }
+  input {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    flex: 1;
+    font: inherit;
+    min-width: 0;
+    padding: 0 15px;
   }
 </style>

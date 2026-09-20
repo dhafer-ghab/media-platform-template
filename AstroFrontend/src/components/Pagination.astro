@@ -1,0 +1,53 @@
+---
+interface Props {
+  page: number;
+  totalPages: number;
+  basePath: string;
+  params?: Record<string, string | undefined>;
+}
+
+const { page, totalPages, basePath, params = {} } = Astro.props;
+
+function pageUrl(target: number): string {
+  const query = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (value) query.set(key, value);
+  }
+  if (target > 1) query.set('page', String(target));
+  const value = query.toString();
+  return `${basePath}${value ? `?${value}` : ''}`;
+}
+---
+
+{totalPages > 1 && (
+  <nav class="pagination" aria-label="Pagination">
+    {page > 1 ? (
+      <a rel="prev" href={pageUrl(page - 1)}>← Previous</a>
+    ) : <span></span>}
+    <span>Page {page} of {totalPages}</span>
+    {page < totalPages ? (
+      <a rel="next" href={pageUrl(page + 1)}>Next →</a>
+    ) : <span></span>}
+  </nav>
+)}
+
+<style>
+  .pagination {
+    align-items: center;
+    border-top: 1px solid var(--border-soft);
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    margin-top: 38px;
+    padding-top: 24px;
+  }
+  .pagination > :last-child { text-align: right; }
+  .pagination a,
+  .pagination span {
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+  .pagination a:hover { color: var(--accent); }
+</style>

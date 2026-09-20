@@ -6,8 +6,8 @@ import type { PagedPosts } from '@/lib/server/posts';
 import { getPosts } from '@/lib/server/posts';
 import { cleanFilter, parsePage, parseSort, setCollectionCache, setNoStore } from '@/lib/server/page';
 
-const tag = cleanFilter(Astro.params.tag ?? '', 50).toLowerCase();
-if (!tag) return Astro.redirect('/explore');
+const keyword = cleanFilter(Astro.params.keyword ?? '', 100);
+if (!keyword) return Astro.redirect('/search');
 
 const page = parsePage(Astro.url.searchParams.get('page'));
 const sort = parseSort(Astro.url.searchParams.get('sort'));
@@ -15,27 +15,29 @@ let error = '';
 let result: PagedPosts = { items: [], page, pageSize: 20, totalCount: 0, totalPages: 0 };
 
 try {
-  result = await getPosts({ tag, sort, page, pageSize: 20 });
+  result = await getPosts({ q: keyword, sort, page, pageSize: 20 });
   setCollectionCache(Astro.response.headers);
 } catch {
-  error = 'This tag could not be loaded. Please try again shortly.';
+  error = 'Search is temporarily unavailable. Please try again shortly.';
   Astro.response.status = 502;
   setNoStore(Astro.response.headers);
 }
 ---
 
 <Layout
-  title={`#${tag} — Verso`}
-  description={`Published work tagged ${tag}.`}
-  canonical={`${Astro.url.origin}/tags/${encodeURIComponent(tag)}`}
+  title={`“${keyword}” — Search — Verso`}
+  description={`Published work matching ${keyword}.`}
+  initialQ={keyword}
+  robots="noindex,follow"
+  canonical={`${Astro.url.origin}/search/${encodeURIComponent(keyword)}`}
 >
-  <main class="container tag-page">
-    <a class="back-link" href="/explore">← Explore</a>
-    <div class="eyebrow">Tag</div>
-    <h1 class="h-display">#{tag}</h1>
+  <main class="container search-page">
+    <a class="back-link" href="/search">← New search</a>
+    <div class="eyebrow">Search results</div>
+    <h1 class="h-display">“{keyword}”</h1>
 
-    <form class="tag-tools" action={`/tags/${encodeURIComponent(tag)}`} method="get">
-      <p><strong>{result.totalCount}</strong> published {result.totalCount === 1 ? 'work' : 'works'}</p>
+    <form class="search-tools" action={`/search/${encodeURIComponent(keyword)}`} method="get">
+      <p><strong>{result.totalCount}</strong> {result.totalCount === 1 ? 'result' : 'results'}</p>
       <label>
         <span>Sort</span>
         <select name="sort">
@@ -52,11 +54,11 @@ try {
       <div class="error-state" role="alert">{error}</div>
     ) : (
       <>
-        <PostGrid posts={result.items} emptyMessage={`No published works use #${tag} yet.`} />
+        <PostGrid posts={result.items} emptyMessage={`No published works match “${keyword}”.`} />
         <Pagination
           page={result.page}
           totalPages={result.totalPages}
-          basePath={`/tags/${encodeURIComponent(tag)}`}
+          basePath={`/search/${encodeURIComponent(keyword)}`}
           params={{ sort: sort === 'newest' ? undefined : sort }}
         />
       </>
@@ -65,24 +67,25 @@ try {
 </Layout>
 
 <style>
-  .tag-page { padding: clamp(40px, 6vw, 76px) 0 100px; }
+  .search-page { padding: clamp(40px, 6vw, 78px) 0 100px; }
   .eyebrow { margin-top: 24px; }
   h1 {
-    font-size: clamp(46px, 8vw, 104px);
-    margin: 0.12em 0 34px;
+    font-size: clamp(42px, 7vw, 92px);
+    margin: 0.15em 0 34px;
   }
-  .tag-tools {
+  .search-tools {
     align-items: end;
     border-bottom: 1px solid var(--border-soft);
     display: flex;
     flex-wrap: wrap;
     gap: 14px;
+    justify-content: flex-end;
     margin-bottom: 32px;
     padding-bottom: 22px;
   }
-  .tag-tools p { color: var(--muted); margin: 0 auto 12px 0; }
-  .tag-tools label { display: grid; gap: 5px; }
-  .tag-tools label span {
+  .search-tools p { color: var(--muted); margin: 0 auto 12px 0; }
+  .search-tools label { display: grid; gap: 5px; }
+  .search-tools label span {
     color: var(--muted);
     font-size: 10px;
     font-weight: 600;

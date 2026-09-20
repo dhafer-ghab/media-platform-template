@@ -1,0 +1,120 @@
+---
+import Layout from '@/layouts/Layout.astro';
+import type { PostSummary } from '@/lib/server/posts';
+import { getPost, PostsApiError, recordPostView } from '@/lib/server/posts';
+import { setNoStore } from '@/lib/server/page';
+
+const id = Astro.params.id ?? '';
+const validId = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id);
+let post: PostSummary | null = null;
+let error = '';
+
+setNoStore(Astro.response.headers);
+
+if (!validId) {
+  Astro.response.status = 404;
+  error = 'This published work could not be found.';
+} else {
+  try {
+    post = await getPost(id);
+    try {
+      await recordPostView(id);
+    } catch {
+      // A metrics failure must not hide a published work.
+    }
+  } catch (exception) {
+    Astro.response.status = exception instanceof PostsApiError && exception.status === 404 ? 404 : 502;
+    error = Astro.response.status === 404
+      ? 'This published work could not be found.'
+      : 'This work is temporarily unavailable.';
+  }
+}
+---
+
+<Layout
+  title={post ? `${post.title} — Verso` : 'Work unavailable — Verso'}
+  description={post?.description || 'Published work on Verso.'}
+  canonical={post ? `${Astro.url.origin}/posts/${post.id}` : undefined}
+  robots={post ? 'index,follow' : 'noindex,follow'}
+>
+  <main class="container post-page">
+    <a class="back-link" href="/explore">← Explore</a>
+    {post ? (
+      <article>
+        <div class="post-page__media">
+          {post.mediaUrl && <img src={post.mediaUrl} alt="" />}
+        </div>
+        <div class="post-page__content">
+          <div class="eyebrow">{post.category}</div>
+          <h1 class="h-display">{post.title}</h1>
+          {post.description && <p>{post.description}</p>}
+          <div class="post-page__tags">
+            {post.tags.map((tag) => (
+              <a class="tag-pill" href={`/tags/${encodeURIComponent(tag)}`}>#{tag}</a>
+            ))}
+          </div>
+        </div>
+      </article>
+    ) : (
+      <section class="error-state" role="alert">
+        <h1>{error}</h1>
+        <a class="btn btn-ghost" href="/explore">Return to Explore</a>
+      </section>
+    )}
+  </main>
+</Layout>
+
+<style>
+  .post-page { padding: clamp(34px, 5vw, 68px) 0 100px; }
+  article {
+    display: grid;
+    gap: clamp(28px, 6vw, 90px);
+    grid-template-columns: minmax(0, 1.15fr) minmax(280px, 0.85fr);
+    margin-top: 30px;
+  }
+  .post-page__media {
+    background: var(--surface);
+    min-height: 320px;
+  }
+  .post-page__media img {
+    display: block;
+    height: auto;
+    max-height: 80vh;
+    object-fit: contain;
+    width: 100%;
+  }
+  .post-page__content { align-self: center; }
+  h1 {
+    font-size: clamp(42px, 6vw, 82px);
+    margin-top: 0.16em;
+  }
+  .post-page__content p {
+    color: var(--muted);
+    font-family: 'Spectral', serif;
+    font-size: clamp(18px, 2vw, 24px);
+    line-height: 1.55;
+    margin-top: 28px;
+    white-space: pre-line;
+  }
+  .post-page__tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 9px;
+    margin-top: 30px;
+  }
+  .error-state {
+    border: 1px solid var(--border-soft);
+    margin-top: 30px;
+    padding: clamp(36px, 7vw, 80px);
+    text-align: center;
+  }
+  .error-state h1 {
+    font-family: 'Spectral', serif;
+    font-size: 32px;
+    font-weight: 400;
+    margin: 0 0 28px;
+  }
+  @media (max-width: 800px) {
+    article { grid-template-columns: 1fr; }
+  }
+</style>

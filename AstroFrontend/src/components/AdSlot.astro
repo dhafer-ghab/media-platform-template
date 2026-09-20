@@ -1,0 +1,82 @@
+---
+interface Props {
+  placement?: string;
+}
+
+const { placement = 'explore-leaderboard' } = Astro.props;
+---
+
+<aside
+  class="ad-slot"
+  aria-label="Advertisement"
+  data-ad-slot={placement}
+>
+  <span class="ad-slot__label">Advertisement</span>
+  <div class="ad-slot__content">
+    <div>
+      <strong>Reserved for your campaign</strong>
+      <span>Premium placement · responsive display</span>
+    </div>
+    <span class="ad-slot__format" aria-hidden="true">970 × 250</span>
+  </div>
+</aside>
+
+<style>
+  .ad-slot {
+    background:
+      linear-gradient(115deg, color-mix(in srgb, var(--surface) 88%, transparent), transparent),
+      repeating-linear-gradient(
+        -45deg,
+        transparent,
+        transparent 12px,
+        color-mix(in srgb, var(--border-soft) 60%, transparent) 12px,
+        color-mix(in srgb, var(--border-soft) 60%, transparent) 13px
+      );
+    border: 1px solid var(--border-soft);
+    display: grid;
+    min-height: clamp(150px, 18vw, 250px);
+    padding: clamp(18px, 2.5vw, 30px);
+    position: relative;
+  }
+  .ad-slot__label {
+    color: var(--faint);
+    font-size: 9px;
+    font-weight: 600;
+    left: clamp(18px, 2.5vw, 30px);
+    letter-spacing: 0.16em;
+    position: absolute;
+    text-transform: uppercase;
+    top: clamp(18px, 2.5vw, 30px);
+  }
+  .ad-slot__content {
+    align-items: end;
+    align-self: end;
+    display: flex;
+    gap: 24px;
+    justify-content: space-between;
+  }
+  .ad-slot__content > div {
+    display: grid;
+    gap: 6px;
+  }
+  .ad-slot__content strong {
+    font-family: 'Spectral', serif;
+    font-size: clamp(21px, 2.5vw, 34px);
+    font-style: italic;
+    font-weight: 400;
+  }
+  .ad-slot__content span {
+    color: var(--muted);
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+  .ad-slot__format {
+    border: 1px solid var(--border);
+    flex: 0 0 auto;
+    padding: 8px 10px;
+  }
+  @media (max-width: 560px) {
+    .ad-slot__format { display: none; }
+  }
+</style>

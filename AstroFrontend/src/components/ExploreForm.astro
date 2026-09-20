@@ -1,0 +1,101 @@
+---
+import type { PostFacets, PostSort } from '@/lib/server/posts';
+
+interface Props {
+  facets: PostFacets;
+  category: string;
+  tag: string;
+  sort: PostSort;
+}
+
+const { facets, category, tag, sort } = Astro.props;
+---
+
+<form class="filters" action="/explore" method="get" aria-label="Explore filters">
+  <label>
+    <span>Category</span>
+    <select name="category">
+      <option value="">All categories</option>
+      {facets.categories.map((facet) => (
+        <option value={facet.name} selected={facet.name.toLowerCase() === category.toLowerCase()}>
+          {facet.name} ({facet.count})
+        </option>
+      ))}
+    </select>
+  </label>
+  <label>
+    <span>Tag</span>
+    <select name="tag">
+      <option value="">All tags</option>
+      {facets.tags.map((facet) => (
+        <option value={facet.name} selected={facet.name.toLowerCase() === tag.toLowerCase()}>
+          #{facet.name} ({facet.count})
+        </option>
+      ))}
+    </select>
+  </label>
+  <label>
+    <span>Sort</span>
+    <select name="sort">
+      <option value="newest" selected={sort === 'newest'}>Newest first</option>
+      <option value="popular" selected={sort === 'popular'}>Most viewed</option>
+      <option value="oldest" selected={sort === 'oldest'}>Oldest first</option>
+      <option value="title" selected={sort === 'title'}>Title A–Z</option>
+    </select>
+  </label>
+  <button class="btn btn-primary" type="submit">Apply filters</button>
+  {(category || tag || sort !== 'newest') && <a class="clear" href="/explore">Clear</a>}
+</form>
+
+<style>
+  .filters {
+    align-items: end;
+    background: var(--surface);
+    border: 1px solid var(--border-soft);
+    display: grid;
+    gap: 16px;
+    grid-template-columns: repeat(3, minmax(150px, 1fr)) auto auto;
+    padding: 20px;
+  }
+  label {
+    display: grid;
+    gap: 7px;
+  }
+  label span {
+    color: var(--muted);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+  }
+  select {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font: inherit;
+    min-height: 44px;
+    padding: 0 12px;
+    width: 100%;
+  }
+  select:focus {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  .filters .btn {
+    min-height: 44px;
+  }
+  .clear {
+    align-self: center;
+    color: var(--accent);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  @media (max-width: 900px) {
+    .filters { grid-template-columns: 1fr 1fr; }
+  }
+  @media (max-width: 580px) {
+    .filters { grid-template-columns: 1fr; }
+  }
+</style>
