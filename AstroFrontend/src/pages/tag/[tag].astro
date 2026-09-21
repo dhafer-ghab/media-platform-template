@@ -1,0 +1,8 @@
+---
+return Astro.redirect(
+  Astro.params.tag
+    ? `/tags/${encodeURIComponent(Astro.params.tag.trim().toLowerCase())}`
+    : '/tags',
+  301,
+);
+---

@@ -1,119 +1,125 @@
-# Verso — Astro implementation
+# Verso frontend
 
-An Astro implementation of the "Verso Gallery" design originally exported from
-Claude's design canvas. A slow, editorial index of contemporary visual artists
-— home / discover, artists directory, artist profile, categories, category
-detail, tag detail, artwork detail, and search.
+Verso is an Astro 7 frontend for the media platform. The Home, Explore, Tag,
+Search, and Post detail routes are server-rendered and read published posts from
+the .NET Posts API.
 
-Procedurally generated CSS gradients stand in for the artwork images, and the
-36-work / 9-artist dataset lives in `src/data/gallery.ts`.
+## Requirements
 
-## Prerequisites
+- Node.js 22.12 or newer
+- npm
+- The .NET Posts API for real application data
 
-Node.js 18.17+ (or 20+) and npm. **No global Astro install needed** — Astro
-is a project dev-dependency and is invoked via npm scripts.
+The frontend does not require a global Astro installation.
 
-### Install Node.js
+## Configuration
 
-**Windows (PowerShell, winget):**
+`POSTS_API_URL` is the required server-side base URL of the Posts API. Keeping
+it private prevents the frontend from exposing an internal service address.
+
+PowerShell:
+
 ```powershell
-winget install OpenJS.NodeJS.LTS
+$env:POSTS_API_URL = 'http://127.0.0.1:5188'
 ```
 
-**macOS (Homebrew):**
+Bash:
+
 ```bash
-brew install node
+export POSTS_API_URL=http://127.0.0.1:5188
 ```
 
-**Linux (Ubuntu/Debian, NodeSource current LTS):**
-```bash
-curl -fsSL https://deb.nodesource.com/setup_lts.x | sudo -E bash -
-sudo apt-get install -y nodejs
+This value is private to the Astro server and is not sent to the browser.
+
+## Install and run
+
+```text
+npm ci
+npm run dev
 ```
 
-Verify (any platform):
-```
-node --version
-npm --version
-```
+The development server is available at `http://localhost:4321`.
 
-## Get the project
+Build and preview the server-rendered output:
 
-```
-git clone <repo-url> verso
-cd verso
+```text
+npm run build
+npm run preview -- --host 127.0.0.1
 ```
 
-Or copy the `verso/` folder. Do **not** copy `node_modules/` — it's
-machine-specific and excluded by `.gitignore`.
+The production build uses the Astro Node standalone adapter. It can also be
+started directly after setting `POSTS_API_URL`, `HOST`, and `PORT`:
 
-## Install dependencies
-
-```
-npm install
+```text
+node dist/server/entry.mjs
 ```
 
-Reads `package.json` and installs everything into `./node_modules`.
+## Routes
 
-## Run
+| Route | Purpose |
+| --- | --- |
+| `/` | Most-viewed and newest published posts, categories, and tags |
+| `/explore` | Category/tag filters, sorting, and pagination |
+| `/tags` | Tags returned by the Posts API, ordered by published-post activity |
+| `/tags/[tag]` | Published posts for one tag |
+| `/search` | Search form and keyword redirect |
+| `/search/[keyword]` | Server-rendered keyword results |
+| `/posts/[id]` | Published post detail and view recording |
+| `/tag/[tag]` | Permanent redirect to `/tags/[tag]` |
 
+The Posts API and upload flow are owned by their respective teams; this frontend
+only consumes their published-post and facet contracts. The existing artist,
+category, and legacy work pages remain statically
+prerendered from `src/data/gallery.ts` while their backend modules are built.
+
+## Rendering and browser JavaScript
+
+Home, Explore, Tag, Search, and Post detail use ordinary links and GET forms.
+They do not ship browser-side JavaScript. Filtering, sorting, searching, and
+pagination are handled by Astro on the server.
+
+The legacy category page still contains its original client-side tag filter.
+Legacy Follow and Save controls are visual placeholders until server-backed
+actions replace their removed local-storage behavior.
+
+## Caching
+
+| Page type | Browser | Shared/CDN | Stale fallback |
+| --- | ---: | ---: | ---: |
+| Home and popularity | 1 minute | 5 minutes | 1 hour |
+| Explore, Tag, and Search | 2 minutes | 10 minutes | 1 hour |
+| Post detail and errors | `no-store` | `no-store` | none |
+
+These values keep navigation fast and improve Core Web Vitals while limiting
+how long users can see stale discovery results. Post details remain `no-store`
+because each server render currently records a view. Move view collection to
+Cloudflare or another edge pipeline before caching detail HTML.
+
+A CDN such as Cloudflare may respect the shared-cache directives, but it must
+never cache write methods, errors, or private responses. Publishing or editing
+content should eventually trigger a CDN purge; the TTL remains a safety limit
+when purging fails.
+
+## Verification
+
+```text
+npm run check
+npm run build
+npm run test:smoke
+npm audit
 ```
-npm run dev       # dev server at http://localhost:4321
-npm run build     # produce static site in ./dist
-npm run preview   # serve the built ./dist locally
-```
 
-That's the full loop.
+The Playwright smoke suite starts a deterministic local Posts API fixture and
+checks desktop and mobile rendering, filters, Search, Tag, cache headers, and
+the absence of scripts on the public SSR pages. Real PostgreSQL behavior is
+covered separately by the .NET integration suite.
 
-## Project layout
+## Deployment notes
 
-```
-verso/
-├─ astro.config.mjs
-├─ package.json
-├─ tsconfig.json            # @/* → src/*
-└─ src/
-   ├─ data/gallery.ts       # artists, artworks, categories, helpers
-   ├─ layouts/Layout.astro  # global tokens, fonts, follow/save script
-   ├─ components/
-   │  ├─ Header.astro       # sticky nav + search form
-   │  ├─ Footer.astro
-   │  ├─ WorkCard.astro     # variants: default | masonry | compact | spotlight | pin
-   │  ├─ ArtistCard.astro
-   │  └─ CategoryCard.astro
-   └─ pages/
-      ├─ index.astro
-      ├─ artists/{index,[slug]}.astro
-      ├─ categories/{index,[slug]}.astro
-      ├─ tags/[tag].astro
-      ├─ works/[slug].astro
-      └─ search.astro
-```
-
-## Notes on routing
-
-- All pages are statically prerendered at build time.
-- Astro 4 strips query strings from prerendered pages, so the **search** page
-  and the **category tag filter** do their filtering client-side: the page
-  ships a JSON index (search) or `data-tags` attributes (category) and a small
-  inline script reads `window.location.search` to filter the DOM. No server
-  adapter required.
-- Follow / Save buttons persist in `localStorage` under `verso:following` and
-  `verso:saved`. Logic lives in the inline script at the bottom of
-  `src/layouts/Layout.astro` and is opted into via `data-follow-toggle` /
-  `data-save-toggle` attributes.
-
-## Editor (optional)
-
-```
-code --install-extension astro-build.astro-vscode
-```
-
-## Recommended npm scripts cheat-sheet
-
-| Command            | What it does                                  |
-| ------------------ | --------------------------------------------- |
-| `npm run dev`      | Local dev server, HMR, port 4321              |
-| `npm run build`    | Static build to `./dist`                      |
-| `npm run preview`  | Serves `./dist` locally to smoke-test a build |
-| `npx astro check`  | Type-check `.astro` files                     |
+- Set `POSTS_API_URL` to an address reachable from the Astro server.
+- Run the standalone Node server behind the deployment platform or reverse
+  proxy.
+- Preserve the incoming public host/protocol so canonical URLs are correct.
+- Add rate limiting or view deduplication before treating popularity as a
+  production-grade ranking signal.
+- Authorization and ownership checks are intentionally deferred by the team.

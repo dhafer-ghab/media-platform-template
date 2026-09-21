@@ -38,10 +38,13 @@
   </Folder>
   <Folder Name="/src/Tests/IntegrationTests/">
     <Project Path="src/Tests/IntegrationTests/Posts.IntegrationTests/Posts.IntegrationTests.csproj" />
+    <Project Path="src/Tests/IntegrationTests/Storage.IntegrationTests/Storage.IntegrationTests.csproj" />
     <Project Path="src/Tests/IntegrationTests/Users.IntegrationTests/Users.IntegrationTests.csproj" />
   </Folder>
   <Folder Name="/src/Tests/UnitTests/">
     <Project Path="src/Tests/UnitTests/Posts.UnitTests/Posts.UnitTests.csproj" />
+    <Project Path="src/Tests/UnitTests/Storage.Application.UnitTests/Storage.Application.UnitTests.csproj" />
+    <Project Path="src/Tests/UnitTests/Storage.Presentation.UnitTests/Storage.Presentation.UnitTests.csproj" />
     <Project Path="src/Tests/UnitTests/Users.Domain.UnitTests/Users.Domain.UnitTests.csproj" />
     <Project Path="src/Tests/UnitTests/Users.Presentation.UnitTests/Users.Presentation.UnitTests.csproj" />
   </Folder>

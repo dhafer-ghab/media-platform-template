@@ -6,12 +6,16 @@ interface Props {
   title?: string;
   description?: string;
   initialQ?: string;
+  robots?: string;
+  canonical?: string;
 }
 
 const {
   title = 'Verso — An index of contemporary visual artists',
   description = 'Verso is a slow place to discover painters, photographers, printmakers and digital artists from around the world — one work at a time.',
   initialQ = '',
+  robots = 'index,follow',
+  canonical,
 } = Astro.props;
 ---
 
@@ -22,26 +26,33 @@ const {
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{title}</title>
     <meta name="description" content={description} />
-    <meta name="theme-color" content="#f5f2ec" media="(prefers-color-scheme: light)" />
-    <meta name="theme-color" content="#14110e" media="(prefers-color-scheme: dark)" />
+    <meta name="robots" content={robots} />
+    {canonical && <link rel="canonical" href={canonical} />}
+    <meta name="theme-color" content="#f5f2ec" data-theme-color />
+    <script is:inline data-theme-script>
+      (() => {
+        let theme;
+        try {
+          theme = localStorage.getItem('verso:theme');
+        } catch {
+          // Fall back to the operating-system preference.
+        }
+        if (theme !== 'light' && theme !== 'dark') {
+          theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        }
+        document.documentElement.dataset.theme = theme;
+        document.querySelector('[data-theme-color]')?.setAttribute(
+          'content',
+          theme === 'dark' ? '#14110e' : '#f5f2ec',
+        );
+      })();
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
       href="https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,300;0,400;0,500;0,600;1,400;1,500&family=Archivo:wght@400;500;600;700&display=swap"
       rel="stylesheet"
     />
-    <script is:inline>
-      (function () {
-        try {
-          var stored = localStorage.getItem('verso:theme');
-          var prefers = window.matchMedia('(prefers-color-scheme: dark)').matches;
-          var theme = stored === 'light' || stored === 'dark' ? stored : prefers ? 'dark' : 'light';
-          document.documentElement.setAttribute('data-theme', theme);
-        } catch (e) {
-          /* ignore */
-        }
-      })();
-    </script>
   </head>
   <body>
     <div class="page">
@@ -50,79 +61,47 @@ const {
       <Footer />
     </div>
 
-    <script>
-      type ToggleKind = 'follow' | 'save';
-      const STORAGE_KEYS: Record<ToggleKind, string> = {
-        follow: 'verso:following',
-        save: 'verso:saved',
-      };
-
-      function readSet(key: string): Set<string> {
-        try {
-          const raw = localStorage.getItem(key);
-          if (!raw) return new Set();
-          const arr = JSON.parse(raw) as unknown;
-          return new Set(Array.isArray(arr) ? arr.map(String) : []);
-        } catch {
-          return new Set();
-        }
-      }
-
-      function writeSet(key: string, set: Set<string>): void {
-        try {
-          localStorage.setItem(key, JSON.stringify([...set]));
-        } catch {
-          /* ignore */
-        }
-      }
-
-      function paint(
-        btn: HTMLButtonElement,
-        kind: ToggleKind,
-        active: boolean,
-      ): void {
-        const labelOn =
-          kind === 'follow'
-            ? btn.dataset.labelFollowing ?? 'Following'
-            : btn.dataset.labelSaved ?? 'Saved ✓';
-        const labelOff =
-          kind === 'follow'
-            ? btn.dataset.labelFollow ?? '+ Follow'
-            : btn.dataset.labelSave ?? 'Save';
-        btn.textContent = active ? labelOn : labelOff;
-        if (kind === 'follow') {
-          btn.dataset.following = active ? '1' : '0';
-        } else {
-          btn.dataset.saved = active ? '1' : '0';
-        }
-        btn.setAttribute('aria-pressed', active ? 'true' : 'false');
-      }
-
-      function bind(kind: ToggleKind, selector: string, idAttr: string): void {
-        const buttons = document.querySelectorAll<HTMLButtonElement>(selector);
-        if (buttons.length === 0) return;
-        const key = STORAGE_KEYS[kind];
-        const set = readSet(key);
-        buttons.forEach((btn) => {
-          const id = btn.dataset[idAttr];
-          if (!id) return;
-          paint(btn, kind, set.has(id));
-          btn.addEventListener('click', () => {
-            const current = readSet(key);
-            if (current.has(id)) current.delete(id);
-            else current.add(id);
-            writeSet(key, current);
-            paint(btn, kind, current.has(id));
-          });
-        });
-      }
-
-      bind('follow', '[data-follow-toggle]', 'artistId');
-      bind('save', '[data-save-toggle]', 'workId');
-    </script>
-
     <style is:global>
-      :root,
+      :root {
+        --bg: #f5f2ec;
+        --surface: #efebe2;
+        --ink: #1a1714;
+        --on-ink: #f5f2ec;
+        --text: #1a1714;
+        --text-2: #3a362f;
+        --text-3: #4a463f;
+        --muted: #6b655c;
+        --faint: #9a9286;
+        --border: #c9c2b4;
+        --border-soft: #e2dccf;
+        --accent: #c8482b;
+        --header-bg: rgba(245, 242, 236, 0.9);
+        --hairline: rgba(0, 0, 0, 0.07);
+        --chip-bg: rgba(26, 23, 20, 0.06);
+        --shadow: rgba(26, 23, 20, 0.35);
+        color-scheme: light;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #14110e;
+          --surface: #1f1b16;
+          --ink: #f0ebe0;
+          --on-ink: #14110e;
+          --text: #ece6da;
+          --text-2: #d2c9b8;
+          --text-3: #bdb29c;
+          --muted: #9a917f;
+          --faint: #766d5e;
+          --border: #3a342a;
+          --border-soft: #28231d;
+          --accent: #e87a5d;
+          --header-bg: rgba(20, 17, 14, 0.85);
+          --hairline: rgba(255, 255, 255, 0.06);
+          --chip-bg: rgba(240, 235, 224, 0.08);
+          --shadow: rgba(0, 0, 0, 0.6);
+          color-scheme: dark;
+        }
+      }
       :root[data-theme='light'] {
         --bg: #f5f2ec;
         --surface: #efebe2;

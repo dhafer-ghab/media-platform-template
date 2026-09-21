@@ -1,0 +1,187 @@
+---
+import AdSlot from '@/components/AdSlot.astro';
+import ExploreForm from '@/components/ExploreForm.astro';
+import Pagination from '@/components/Pagination.astro';
+import PostGrid from '@/components/PostGrid.astro';
+import Layout from '@/layouts/Layout.astro';
+import type { PagedPosts, PostFacets } from '@/lib/server/posts';
+import { getPostFacets, getPosts } from '@/lib/server/posts';
+import { cleanFilter, parsePage, parseSort, setCollectionCache, setNoStore } from '@/lib/server/page';
+
+const category = cleanFilter(Astro.url.searchParams.get('category'), 100);
+const tag = cleanFilter(Astro.url.searchParams.get('tag'), 50).toLowerCase();
+const sort = parseSort(Astro.url.searchParams.get('sort'));
+const page = parsePage(Astro.url.searchParams.get('page'));
+
+let error = '';
+let result: PagedPosts = { items: [], page, pageSize: 20, totalCount: 0, totalPages: 0 };
+let facets: PostFacets = { categories: [], tags: [] };
+
+const [postsResult, facetsResult] = await Promise.allSettled([
+  getPosts({ category, tag, sort, page, pageSize: 20 }),
+  getPostFacets(),
+]);
+
+if (postsResult.status === 'fulfilled') {
+  result = postsResult.value;
+  if (facetsResult.status === 'fulfilled') facets = facetsResult.value;
+  setCollectionCache(Astro.response.headers);
+} else {
+  error = 'The collection could not be loaded. Please try again shortly.';
+  Astro.response.status = 502;
+  setNoStore(Astro.response.headers);
+}
+---
+
+<Layout
+  title="Explore published work — Verso"
+  description="Browse the latest published work in a clean, uninterrupted visual feed."
+  canonical={`${Astro.url.origin}/explore`}
+>
+  <main class="container explore-page">
+    <header class="explore-page__header">
+      <div class="explore-page__intro">
+        <div class="eyebrow">The public index</div>
+        <h1 class="h-display">Explore the collection.</h1>
+        <p>A quiet, uninterrupted view of work published by artists across the index.</p>
+      </div>
+      <div class="explore-page__edition" aria-label="Collection details">
+        <span>In the archive</span>
+        <strong>{result.totalCount}</strong>
+        <span>{result.totalCount === 1 ? 'published work' : 'published works'}</span>
+      </div>
+    </header>
+
+    <AdSlot />
+
+    {!error && (
+      <ExploreForm facets={facets} category={category} tag={tag} sort={sort} />
+    )}
+
+    <div class="collection-head">
+      <div>
+        <div class="eyebrow">Latest additions</div>
+        <h2 class="h-section">Work from the index</h2>
+      </div>
+      {(category || tag || sort !== 'newest') ? (
+        <a href="/explore">View the full collection →</a>
+      ) : (
+        <span>Newest first</span>
+      )}
+    </div>
+
+    {(category || tag) && (
+      <div class="active-view">
+        Showing {category ? category : 'all categories'}{tag ? ` · #${tag}` : ''}
+      </div>
+    )}
+
+    {error ? (
+      <div class="error-state" role="alert">{error}</div>
+    ) : (
+      <>
+        <PostGrid posts={result.items} />
+        <Pagination
+          page={result.page}
+          totalPages={result.totalPages}
+          basePath="/explore"
+          params={{ category, tag, sort: sort === 'newest' ? undefined : sort }}
+        />
+      </>
+    )}
+  </main>
+</Layout>
+
+<style>
+  .explore-page {
+    padding: clamp(42px, 6vw, 78px) 0 clamp(64px, 8vw, 110px);
+  }
+  .explore-page__header {
+    align-items: start;
+    border-bottom: 1px solid var(--border-soft);
+    display: grid;
+    gap: clamp(34px, 8vw, 130px);
+    grid-template-columns: minmax(0, 1fr) auto;
+    margin-bottom: clamp(28px, 4vw, 46px);
+    padding-bottom: clamp(36px, 5vw, 64px);
+  }
+  .explore-page h1 {
+    font-size: clamp(50px, 8.5vw, 116px);
+    margin-top: 0.15em;
+    max-width: 10ch;
+  }
+  .explore-page__intro p {
+    color: var(--muted);
+    font-size: clamp(15px, 1.3vw, 18px);
+    line-height: 1.65;
+    margin: 26px 0 0;
+    max-width: 48ch;
+  }
+  .explore-page__edition {
+    border-left: 1px solid var(--border-soft);
+    display: grid;
+    min-width: 150px;
+    padding: 8px 0 6px clamp(22px, 3vw, 42px);
+  }
+  .explore-page__edition strong {
+    font-family: 'Spectral', serif;
+    font-size: clamp(48px, 6vw, 80px);
+    font-weight: 300;
+    line-height: 1;
+    margin: 10px 0 5px;
+  }
+  .explore-page__edition span,
+  .collection-head > span,
+  .collection-head > a {
+    color: var(--muted);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+  .collection-head {
+    align-items: end;
+    display: flex;
+    gap: 24px;
+    justify-content: space-between;
+    margin-top: clamp(50px, 7vw, 90px);
+    padding-bottom: 26px;
+  }
+  .collection-head h2 {
+    font-size: clamp(30px, 4vw, 50px);
+    margin-top: 8px;
+  }
+  .collection-head > a:hover { color: var(--accent); }
+  .active-view {
+    background: var(--surface);
+    border-left: 3px solid var(--accent);
+    color: var(--muted);
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    margin-bottom: 28px;
+    padding: 14px 18px;
+    text-transform: uppercase;
+  }
+  .error-state {
+    border: 1px solid var(--border-soft);
+    color: var(--muted);
+    padding: 42px;
+    text-align: center;
+  }
+  @media (max-width: 760px) {
+    .explore-page__header { grid-template-columns: 1fr; }
+    .explore-page__edition {
+      border-left: 0;
+      border-top: 1px solid var(--border-soft);
+      grid-template-columns: auto 1fr auto;
+      align-items: baseline;
+      padding: 22px 0 0;
+    }
+    .explore-page__edition strong {
+      font-size: 42px;
+      margin: 0;
+      text-align: center;
+    }
+    .collection-head { align-items: start; }
+  }
+</style>
