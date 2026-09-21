@@ -21,7 +21,9 @@ public static class HostExtensions
     public static TBuilder RegisterModules<TBuilder>(this TBuilder builder) where TBuilder : IHostApplicationBuilder
     {
         // register users module
-        builder.Services.AddUsersInfrastructure(builder.Configuration);
+        builder.Services.AddUsersInfrastructure(
+            builder.Configuration,
+            enableSeeding: builder.Environment.IsDevelopment());
         builder.Services.AddUsersPresentation();
 
         builder.Services.AddMessageBus();

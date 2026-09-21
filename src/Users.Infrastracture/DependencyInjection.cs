@@ -7,6 +7,7 @@ using Users.Application.Abstractions;
 using Users.Application.Messaging;
 using Users.Domain.Abstractions;
 using Users.Infrastracture.Persistence;
+using Users.Infrastracture.Seeding;
 using Users.Infrastracture.Security;
 
 namespace Users.Infrastracture;
@@ -15,9 +16,10 @@ internal static class DependencyInjection
 {
     public static IServiceCollection AddUsersInfrastructure(
         this IServiceCollection services,
-        IConfiguration configuration)
+        IConfiguration configuration,
+        bool enableSeeding = false)
     {
-        services.AddDbContext(configuration);
+        services.AddDbContext(configuration, enableSeeding);
 
         services.AddUsersApplication(configuration);
 
@@ -26,13 +28,23 @@ internal static class DependencyInjection
 
     private static IServiceCollection AddDbContext(
         this IServiceCollection services,
-        IConfiguration configuration)
+        IConfiguration configuration,
+        bool enableSeeding)
     {
         var connectionString = configuration.GetConnectionString("PostgreConnectionString");
+        var seedOptions = configuration
+            .GetSection(UserSeedOptions.SectionName)
+            .Get<UserSeedOptions>() ?? new UserSeedOptions();
+        var passwordHasher = new PasswordHasher();
 
         services.AddDbContextPool<UsersDbContext>(options =>
+        {
             options.UseNpgsql(connectionString, npgsql =>
-        npgsql.MigrationsHistoryTable("__UsersMigrations", "Users")));
+                npgsql.MigrationsHistoryTable("__UsersMigrations", "Users"));
+
+            if (enableSeeding)
+                UserSeeder.Configure(options, seedOptions, passwordHasher);
+        });
 
         return services;
     }
@@ -48,7 +60,6 @@ internal static class DependencyInjection
         services.AddScoped<IPasswordHasher, PasswordHasher>();
 
         services.AddScoped<IDomainEventDispatcher, MediatRDomainEventDispatcher>();
-
         return services;
     }
 }
