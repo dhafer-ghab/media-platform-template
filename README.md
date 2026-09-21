@@ -20,9 +20,24 @@ The frontend is built with Astro, providing a modern, high-performance web exper
 
 # migrations
 
+## Posts discovery API
+
+The Posts module exposes the published read model used by Home, Explore, Search,
+and Tags. It does not reference the Users, Storage, or Catalog modules.
+
+- `GET /api/posts` supports `q`, `category`, `tag`, `sort`, `page`, and `pageSize`.
+- `GET /api/posts/facets` returns dynamic category and tag counts.
+- `GET /api/posts/{id}` returns one published post.
+- `POST /api/posts/{id}/views` records a view using an atomic database update.
+
+Valid sort values are `newest`, `popular`, `oldest`, and `title`. Public queries
+never return draft or archived posts. Media upload and post-authoring commands
+remain separate concerns and can supply `MediaAssetId` and `MediaUrl` without a
+direct module reference.
+
 - create migraitons, example for user module:
 ```powershell
-dotnet ef migrations add Initial --project .\src\Users.Infrastracture\Users.Infrastracture.csproj --startup-project .\src\Host.WebApi\Host.WebApi.csproj -o Migrations
+dotnet ef migrations add Initial --project .\src\Users.Infrastracture\Users.Infrastracture.csproj --startup-project .\src\Host.WebApi\Host.WebApi.csproj --context UsersDbContext -o Migrations
 ```
 
 Artwork view analytics uses the same PostgreSQL database with an independent
@@ -39,3 +54,23 @@ start container without aspire (for persistent container aspire doesnt allow por
 ```bash
 docker run --name postgres -e POSTGRES_PASSWORD=password -p 5432:5432 -v ./postgres-data:/var/lib/postgresql postgres:18.3
 ```
+
+## Development user seeding
+
+In the `Development` environment, EF Core can create one `Admin`, one `User`, and one
+`PremiumUser` while applying migrations. Seeding uses `UseSeeding` and `UseAsyncSeeding`,
+so EF Core's migration lock protects concurrent runs. It remains disabled unless
+`UserSeed:Enabled` is explicitly set to `true`. Configure the accounts with .NET User Secrets
+or environment variables; no seed credentials are stored in the repository.
+
+Each account uses these configuration keys, where `{index}` is `0`, `1`, or `2`:
+
+```text
+UserSeed:Users:{index}:Name
+UserSeed:Users:{index}:Email
+UserSeed:Users:{index}:Password
+UserSeed:Users:{index}:Role
+```
+
+The roles must be `Admin`, `User`, and `PremiumUser`. Existing users are matched by
+normalized email and left unchanged, making startup seeding safe to run repeatedly.

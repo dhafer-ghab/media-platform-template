@@ -1,0 +1,23 @@
+---
+export interface Props {
+  url: string;
+  originalFileName: string;
+  contentType: string;
+  fileSize: number;
+  createdAt: string;
+}
+
+const { url, originalFileName, contentType, fileSize, createdAt } = Astro.props;
+---
+
+<media-card
+  data-url={url}
+  data-name={originalFileName}
+  data-type={contentType}
+  data-size={String(fileSize)}
+  data-created={createdAt}
+/>
+
+<script>
+  import './MediaCard';
+</script>

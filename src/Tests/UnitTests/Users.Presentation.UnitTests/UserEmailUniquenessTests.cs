@@ -2,7 +2,7 @@ using Users.Application.Abstractions;
 using Users.Application.Users.Commands.CreateUser;
 using Users.Application.Users.Commands.UpdateUser;
 using SharedKernal.Results;
-using Users.Common;
+using SharedKernel.Entities.Enums;
 using Users.Domain;
 using Users.Domain.Abstractions;
 

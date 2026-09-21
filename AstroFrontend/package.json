@@ -9,8 +9,10 @@
     "start": "astro dev",
     "build": "astro build",
     "audit": "npm audit --omit=dev --audit-level=high",
-    "preview": "astro preview",
     "check": "astro check",
+    "test:smoke": "playwright test",
+    "test:mock-api": "node tests/mock-posts-api.mjs",
+    "preview": "astro preview",
     "astro": "astro"
   },
   "dependencies": {
@@ -21,6 +23,7 @@
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.10",
+    "@playwright/test": "^1.61.1",
     "typescript": "^5.9.3"
   }
 }

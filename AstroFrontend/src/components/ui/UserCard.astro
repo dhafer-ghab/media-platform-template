@@ -1,0 +1,19 @@
+---
+import type { UserDto } from '@/api';
+
+export interface Props extends UserDto {}
+
+const { id, name, email, role, createdDate } = Astro.props;
+---
+
+<user-card
+  data-id={id}
+  data-name={name}
+  data-email={email}
+  data-role={role}
+  data-created={createdDate}
+/>
+
+<script>
+  import './UserCard';
+</script>

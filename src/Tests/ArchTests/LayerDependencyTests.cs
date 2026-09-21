@@ -18,6 +18,43 @@ namespace CleanModular.ArchTests;
 /// </summary>
 public class LayerDependencyTests : TestBase
 {
+    [Fact]
+    public void PostsDomain_ShouldNot_Reference_OuterLayers()
+    {
+        Types.InAssembly(PostsDomainAssembly)
+            .ShouldNot()
+            .HaveDependencyOnAny(
+                PostsApplicationAssembly.GetName().Name,
+                PostsInfraAssembly.GetName().Name,
+                PostsPresentationAssembly.GetName().Name)
+            .GetResult()
+            .ShouldBeSuccessful();
+    }
+
+    [Fact]
+    public void PostsApplication_ShouldNot_Reference_OuterLayers()
+    {
+        Types.InAssembly(PostsApplicationAssembly)
+            .ShouldNot()
+            .HaveDependencyOnAny(
+                PostsInfraAssembly.GetName().Name,
+                PostsPresentationAssembly.GetName().Name)
+            .GetResult()
+            .ShouldBeSuccessful();
+    }
+
+    [Fact]
+    public void PostsPresentation_ShouldNot_Reference_DomainOrInfrastructure()
+    {
+        Types.InAssembly(PostsPresentationAssembly)
+            .ShouldNot()
+            .HaveDependencyOnAny(
+                PostsDomainAssembly.GetName().Name,
+                PostsInfraAssembly.GetName().Name)
+            .GetResult()
+            .ShouldBeSuccessful();
+    }
+
     // ── DOMAIN ───────────────────────────────────────────────────
 
     [Fact]

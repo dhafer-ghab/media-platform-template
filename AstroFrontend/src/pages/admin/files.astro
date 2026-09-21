@@ -1,0 +1,166 @@
+---
+import Layout from '@/layouts/Layout.astro';
+---
+
+<Layout title="Files · Admin" description="Browse uploaded images and files">
+  <main class="container">
+    <header class="page-head">
+      <p class="eyebrow">Admin</p>
+      <h1 class="h-display">Library</h1>
+      <p class="lede">All uploaded images, videos, and files in one place.</p>
+    </header>
+
+    <div id="auth-notice" class="notice hidden">
+      <p>You need to be logged in as an admin to view files.</p>
+      <a class="btn btn-primary btn-sm" href="/login">Log in</a>
+    </div>
+
+    <section id="browser" aria-label="File browser">
+      <div class="toolbar">
+        <a class="btn btn-primary btn-sm" href="/admin/upload">+ Upload</a>
+        <button type="button" id="refresh-btn" class="btn btn-ghost btn-sm">Refresh</button>
+      </div>
+
+      <p id="loading" class="state">Loading files…</p>
+      <p id="empty" class="state" hidden>No files yet. <a href="/admin/upload">Upload the first one</a>.</p>
+      <p id="error" class="state state--error" hidden></p>
+
+      <ul id="grid" class="grid"></ul>
+    </section>
+  </main>
+</Layout>
+
+<style>
+  .page-head {
+    padding: 3rem 0 1.5rem;
+  }
+
+  .lede {
+    margin-top: 0.75rem;
+    max-width: 46ch;
+    color: var(--muted);
+    font-size: 1.05rem;
+    line-height: 1.6;
+  }
+
+  .notice {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    padding: 1rem 1.25rem;
+    background: var(--surface);
+    border: 1px solid var(--border-soft);
+    border-radius: 10px;
+    color: var(--text-2);
+  }
+
+  .notice p {
+    margin: 0;
+    flex: 1;
+  }
+
+  .toolbar {
+    display: flex;
+    gap: 0.75rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .state {
+    color: var(--muted);
+    padding: 2rem 0;
+  }
+
+  .state a {
+    color: var(--accent);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+
+  .state--error {
+    color: var(--accent);
+  }
+
+  .grid {
+    list-style: none;
+    margin: 0;
+    padding: 0 0 3rem;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 1.5rem;
+  }
+
+  .grid > li {
+    display: flex;
+  }
+
+  .hidden { display: none; }
+</style>
+
+<script>
+  import { filesApi, ApiError } from '@/api';
+  import { isLoggedIn } from '@/lib/auth';
+  import '@/components/ui/MediaCard.ts';
+  import type { FileDto } from '@/api';
+
+  const grid = document.getElementById('grid')!;
+  const loading = document.getElementById('loading')!;
+  const empty = document.getElementById('empty')!;
+  const error = document.getElementById('error')!;
+  const refreshBtn = document.getElementById('refresh-btn')! as HTMLButtonElement;
+
+  function createCard(file: FileDto): HTMLLIElement {
+    const li = document.createElement('li');
+    const card = document.createElement('media-card');
+    card.setAttribute('data-url', file.url);
+    card.setAttribute('data-name', file.originalFileName);
+    card.setAttribute('data-type', file.contentType);
+    card.setAttribute('data-size', String(file.fileSize));
+    card.setAttribute('data-created', file.createdAt);
+    li.appendChild(card);
+    return li;
+  }
+
+  async function loadFiles(): Promise<void> {
+    loading.hidden = false;
+    empty.hidden = true;
+    error.hidden = true;
+    grid.replaceChildren();
+    refreshBtn.disabled = true;
+
+    try {
+      const files = await filesApi.list();
+      loading.hidden = true;
+
+      if (files.length === 0) {
+        empty.hidden = false;
+        return;
+      }
+
+      for (const file of files) {
+        grid.appendChild(createCard(file));
+      }
+    } catch (err) {
+      loading.hidden = true;
+      error.hidden = false;
+      if (err instanceof ApiError && err.status === 401) {
+        error.textContent = 'Not logged in — please log in again.';
+      } else if (err instanceof ApiError && err.status === 403) {
+        error.textContent = 'Your account does not have the admin role.';
+      } else {
+        error.textContent = 'Could not load files. Please try again.';
+      }
+    } finally {
+      refreshBtn.disabled = false;
+    }
+  }
+
+  if (!isLoggedIn()) {
+    document.getElementById('auth-notice')!.classList.remove('hidden');
+    document.getElementById('browser')!.classList.add('hidden');
+  } else {
+    loadFiles();
+  }
+
+  refreshBtn.addEventListener('click', loadFiles);
+</script>

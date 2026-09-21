@@ -1,316 +1,205 @@
 ---
 import Layout from '@/layouts/Layout.astro';
-import WorkCard from '@/components/ui/WorkCard.astro';
-import CategoryCard from '@/components/ui/CategoryCard.astro';
-import { artworks, artists, categories, artworksByArtist } from '@/data/gallery';
+import PostCard from '@/components/PostCard.astro';
+import PostGrid from '@/components/PostGrid.astro';
+import { getPostFacets, getPosts } from '@/lib/server/posts';
+import { setHomeCache, setNoStore } from '@/lib/server/page';
 
-export const prerender = true;
+const [popularResult, newestResult, facetsResult] = await Promise.allSettled([
+  getPosts({ sort: 'popular', pageSize: 6 }),
+  getPosts({ sort: 'newest', pageSize: 12 }),
+  getPostFacets(),
+]);
 
-const heroIds = [0, 24, 12];
-const heroWorks = heroIds.map((i) => artworks[i]!);
+const popular = popularResult.status === 'fulfilled' ? popularResult.value.items : [];
+const newest = newestResult.status === 'fulfilled' ? newestResult.value.items : [];
+const facets = facetsResult.status === 'fulfilled'
+  ? facetsResult.value
+  : { categories: [], tags: [] };
+const unavailable = popularResult.status === 'rejected' && newestResult.status === 'rejected';
 
-const spotlightName = 'Mira Okafor';
-const spotlight = artists.find((a) => a.name === spotlightName) ?? artists[0]!;
-const spotlightWorks = artworksByArtist(spotlight.id).slice(0, 3);
-
-const newestWorks = [...artworks]
-  .sort((a, b) => b.addedAt.localeCompare(a.addedAt) || b.id - a.id)
-  .slice(0, 12);
-const homeDescription = 'Discover contemporary painters, photographers, printmakers, sculptors and digital artists through a curated index of artists and works.';
-const siteUrl = Astro.site ?? Astro.url.origin;
-const jsonLd = {
-  '@context': 'https://schema.org',
-  '@type': 'WebSite',
-  name: 'Verso',
-  url: new URL('/', siteUrl).toString(),
-  description: homeDescription,
-};
+if (unavailable) setNoStore(Astro.response.headers);
+else setHomeCache(Astro.response.headers);
 ---
 
-<Layout description={homeDescription} canonicalPath="/" jsonLd={jsonLd}>
+<Layout>
   <main>
     <section class="container hero">
-      <div class="eyebrow">Index № 04 — Summer 2026</div>
-      <h1 class="h-display hero__h1">An index of contemporary visual artists.</h1>
-      <p class="hero__lede">
-        Verso is a slow place to discover painters, photographers, printmakers and digital artists from around the world — one work at a time.
+      <div class="eyebrow">The public index</div>
+      <h1 class="h-display">Discover work worth returning to.</h1>
+      <p>
+        A living collection of published work, ordered by what people view and what artists upload next.
       </p>
-      <div class="hero__ctas">
-        <a class="btn btn-primary" href="/artists">Browse artists</a>
-        <a class="btn btn-ghost" href="/categories">Explore categories</a>
+      <div class="hero__actions">
+        <a class="btn btn-primary" href="/explore">Explore all works</a>
+        <a class="btn btn-ghost" href="/search">Search the index</a>
       </div>
     </section>
 
-    <section class="container hero-works" aria-labelledby="featured-works-title">
-      <h2 id="featured-works-title" class="sr-only">Featured works</h2>
-      <div class="hero-works__grid">
-        {heroWorks.map((w) => <WorkCard work={w} variant="pin" />)}
-      </div>
-    </section>
+    {unavailable ? (
+      <section class="container unavailable" role="status">
+        <h2>The collection is temporarily unavailable.</h2>
+        <p>Please try again in a moment.</p>
+      </section>
+    ) : (
+      <>
+        <section class="popular">
+          <div class="container section-wrap">
+            <header class="section-head">
+              <div>
+                <div class="eyebrow">Popular now</div>
+                <h2 class="h-section">Most viewed</h2>
+              </div>
+              <a href="/explore?sort=popular">See the full ranking →</a>
+            </header>
+            {popular.length > 0 ? (
+              <div class="popular-grid">
+                {popular.map((post) => <PostCard post={post} featured />)}
+              </div>
+            ) : (
+              <p class="section-empty">Popular works will appear as the collection receives views.</p>
+            )}
+          </div>
+        </section>
 
-    <section class="spotlight">
-      <div class="container spotlight__inner">
-        <div class="eyebrow">Artist in focus</div>
-        <div class="spotlight__grid">
-          <div>
-            <h2 class="spotlight__name">
-              <a href={`/artists/${spotlight.slug}`}>{spotlight.name}</a>
-            </h2>
-            <div class="spotlight__meta">
-              {spotlight.location} — {spotlight.disciplines}
+        <section class="container section-wrap newest">
+          <header class="section-head">
+            <div>
+              <div class="eyebrow">Fresh from the studio</div>
+              <h2 class="h-section">Newest uploads</h2>
             </div>
-            <p class="spotlight__bio">{spotlight.bio}</p>
-            <a class="btn btn-ghost btn-sm" href={`/artists/${spotlight.slug}`}>View profile</a>
-          </div>
-          <div class="spotlight__works">
-            {spotlightWorks.map((w) => <WorkCard work={w} variant="spotlight" />)}
-          </div>
-        </div>
-      </div>
-    </section>
+            <a href="/explore?sort=newest">Explore all works →</a>
+          </header>
+          <PostGrid posts={newest} emptyMessage="No published uploads yet." />
+        </section>
 
-    <section class="container recent" aria-labelledby="newest-title">
-      <div class="recent__head">
-        <h2 id="newest-title" class="h-section recent__h2">Newest works</h2>
-        <a class="recent__more" href="/explore">Explore all works →</a>
-      </div>
-      <div class="masonry">
-        {newestWorks.map((w) => <WorkCard work={w} variant="pin" />)}
-      </div>
-    </section>
-
-    <section class="most-viewed" aria-labelledby="most-viewed-title" data-most-viewed-section hidden>
-      <div class="container most-viewed__inner">
-        <div class="recent__head">
-          <div>
-            <div class="eyebrow">Community attention</div>
-            <h2 id="most-viewed-title" class="h-section recent__h2">Most viewed</h2>
-          </div>
-          <span class="most-viewed__note">Ranked by recorded artwork views</span>
-        </div>
-        <div class="masonry" data-most-viewed-grid></div>
-        <template data-most-viewed-template>
-          {artworks.map((work) => <WorkCard work={work} variant="pin" />)}
-        </template>
-      </div>
-    </section>
-
-    <section class="container browse">
-      <h2 class="h-section browse__h2">Browse by category</h2>
-      <div class="cat-grid">
-        {categories.map((c) => <CategoryCard name={c.name} count={c.count} bg={c.bg} slug={c.slug} />)}
-      </div>
-    </section>
+        {(facets.categories.length > 0 || facets.tags.length > 0) && (
+          <section class="browse">
+            <div class="container browse__grid">
+              <div>
+                <div class="eyebrow">Browse by category</div>
+                <div class="browse__links">
+                  {facets.categories.slice(0, 8).map((facet) => (
+                    <a href={`/explore?category=${encodeURIComponent(facet.name)}`}>
+                      {facet.name} <span>{facet.count}</span>
+                    </a>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <div class="eyebrow">Follow a tag</div>
+                <div class="browse__tags">
+                  {facets.tags.slice(0, 12).map((facet) => (
+                    <a class="tag-pill" href={`/tags/${encodeURIComponent(facet.name)}`}>
+                      #{facet.name} <span>{facet.count}</span>
+                    </a>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </section>
+        )}
+      </>
+    )}
   </main>
-  <script>
-    import { getTopArtworkViews } from '@/lib/artworkViews';
-
-    const section = document.querySelector<HTMLElement>('[data-most-viewed-section]');
-    const grid = document.querySelector<HTMLElement>('[data-most-viewed-grid]');
-    const template = document.querySelector<HTMLTemplateElement>('[data-most-viewed-template]');
-    if (section && grid && template) {
-      const cards = new Map<string, Element>();
-      template.content.querySelectorAll<HTMLElement>('[data-work-slug]').forEach((card) => {
-        const slug = card.dataset.workSlug;
-        if (slug) cards.set(slug, card);
-      });
-
-      void getTopArtworkViews(12).then((ranked) => {
-        const fragment = document.createDocumentFragment();
-        let added = 0;
-        ranked.forEach((item) => {
-          const card = cards.get(item.slug);
-          if (!card) return;
-          const clone = card.cloneNode(true) as HTMLElement;
-          const count = document.createElement('span');
-          count.className = 'most-viewed__count';
-          count.textContent = `${item.viewCount.toLocaleString()} ${item.viewCount === 1 ? 'view' : 'views'}`;
-          clone.append(count);
-          fragment.append(clone);
-          added += 1;
-        });
-        if (added === 0) return;
-        grid.replaceChildren(fragment);
-        section.hidden = false;
-      });
-    }
-  </script>
 </Layout>
 
 <style>
   .hero {
-    padding: clamp(44px, 8vw, 104px) 0 clamp(28px, 4vw, 52px);
+    padding: clamp(58px, 9vw, 118px) 0 clamp(44px, 7vw, 88px);
   }
-  .sr-only {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    padding: 0;
-    margin: -1px;
-    overflow: hidden;
-    clip: rect(0, 0, 0, 0);
-    white-space: nowrap;
-    border: 0;
+  .hero h1 {
+    font-size: clamp(48px, 8vw, 112px);
+    margin-top: 0.18em;
+    max-width: 13ch;
   }
-  .hero__h1 {
-    font-size: clamp(40px, 7.4vw, 104px);
-    margin: 0.22em 0 0;
-    max-width: 16ch;
-    text-wrap: balance;
-  }
-  .hero__lede {
-    max-width: 52ch;
+  .hero p {
     color: var(--muted);
-    font-size: clamp(15px, 1.4vw, 18px);
-    line-height: 1.62;
-    margin: 28px 0 0;
+    font-size: clamp(16px, 1.5vw, 19px);
+    line-height: 1.65;
+    margin: 30px 0 0;
+    max-width: 54ch;
   }
-  .hero__ctas {
+  .hero__actions {
     display: flex;
+    flex-wrap: wrap;
     gap: 14px;
     margin-top: 32px;
-    flex-wrap: wrap;
   }
-
-  .hero-works {
-    padding-bottom: clamp(40px, 6vw, 80px);
+  .section-wrap {
+    padding: clamp(48px, 7vw, 90px) 0;
   }
-  .hero-works__grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-    gap: 28px;
-  }
-
-  .spotlight {
-    background: var(--surface);
-    border-top: 1px solid var(--border-soft);
-    border-bottom: 1px solid var(--border-soft);
-  }
-  .spotlight__inner {
-    padding: clamp(40px, 6vw, 84px) 0;
-  }
-  .spotlight__grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: clamp(24px, 4vw, 56px);
-    margin-top: 22px;
-    align-items: start;
-  }
-  .spotlight__name {
-    font-family: 'Spectral', serif;
-    font-weight: 400;
-    font-size: clamp(30px, 4.2vw, 54px);
-    line-height: 1.02;
-    margin: 0;
-  }
-  .spotlight__name a {
-    color: var(--text);
-  }
-  .spotlight__meta {
-    font-size: 12px;
-    font-weight: 500;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: var(--muted);
-    margin-top: 13px;
-  }
-  .spotlight__bio {
-    color: var(--text-3);
-    font-size: clamp(15px, 1.4vw, 18px);
-    line-height: 1.6;
-    margin: 20px 0 0;
-    max-width: 42ch;
-  }
-  .spotlight__bio + .btn {
-    margin-top: 26px;
-  }
-  .spotlight__works {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 14px;
-  }
-
-  .recent {
-    padding: clamp(44px, 6vw, 84px) 0;
-  }
-  .recent__head {
+  .section-head {
+    align-items: end;
     display: flex;
+    flex-wrap: wrap;
+    gap: 18px;
     justify-content: space-between;
-    align-items: baseline;
-    margin-bottom: 30px;
+    margin-bottom: 34px;
+  }
+  .section-head h2 {
+    font-size: clamp(30px, 4.2vw, 54px);
+    margin-top: 8px;
+  }
+  .section-head > a {
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+  .section-head > a:hover { color: var(--accent); }
+  .popular {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border-soft);
+    border-top: 1px solid var(--border-soft);
+  }
+  .popular-grid {
+    display: grid;
+    gap: 28px;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .newest { padding-bottom: clamp(58px, 8vw, 105px); }
+  .section-empty { color: var(--muted); font-style: italic; }
+  .browse {
+    border-top: 1px solid var(--border-soft);
+    padding: clamp(48px, 7vw, 88px) 0;
+  }
+  .browse__grid {
+    display: grid;
+    gap: clamp(34px, 6vw, 90px);
+    grid-template-columns: 1fr 1fr;
+  }
+  .browse__links {
+    display: grid;
+    margin-top: 22px;
+  }
+  .browse__links a {
+    border-bottom: 1px solid var(--border-soft);
+    display: flex;
+    font-family: 'Spectral', serif;
+    font-size: 22px;
+    justify-content: space-between;
+    padding: 12px 0;
+  }
+  .browse__links a:hover { color: var(--accent); }
+  .browse__links span,
+  .browse__tags span { color: var(--faint); font-family: 'Archivo', sans-serif; font-size: 11px; }
+  .browse__tags {
+    display: flex;
     flex-wrap: wrap;
     gap: 10px;
+    margin-top: 22px;
   }
-  .recent__h2 {
-    font-size: clamp(24px, 3vw, 38px);
+  .unavailable {
+    border: 1px solid var(--border-soft);
+    margin-bottom: 80px;
+    padding: 48px;
   }
-  .recent__more {
-    font-size: 12px;
-    font-weight: 600;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: var(--muted);
-    transition: color 0.2s;
-  }
-  .recent__more:hover {
-    color: var(--accent);
-  }
-
-  .masonry {
-    column-count: 2;
-    column-gap: 22px;
-  }
-  @media (min-width: 640px) {
-    .masonry {
-      column-count: 3;
-    }
-  }
-  @media (min-width: 980px) {
-    .masonry {
-      column-count: 4;
-    }
-  }
-  @media (min-width: 1280px) {
-    .masonry {
-      column-count: 5;
-    }
-  }
-
-  .browse {
-    padding: 0 0 clamp(50px, 7vw, 90px);
-  }
-  .most-viewed {
-    padding: clamp(44px, 6vw, 84px) 0;
-    background: var(--surface);
-    border-top: 1px solid var(--border-soft);
-    border-bottom: 1px solid var(--border-soft);
-  }
-  .most-viewed__note {
-    color: var(--faint);
-    font-size: 10px;
-    font-weight: 600;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-  }
-  .most-viewed .eyebrow {
-    margin-bottom: 8px;
-  }
-  :global(.most-viewed__count) {
-    display: inline-block;
-    margin-top: 12px;
-    color: var(--faint);
-    font-size: 10px;
-    font-weight: 600;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-  }
-  .browse__h2 {
-    font-size: clamp(24px, 3vw, 38px);
-    margin: 0 0 28px;
-  }
-  .cat-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-    gap: 26px;
+  .unavailable h2 { font-family: 'Spectral', serif; font-weight: 400; }
+  .unavailable p { color: var(--muted); }
+  @media (max-width: 850px) {
+    .popular-grid { grid-template-columns: 1fr; }
+    .browse__grid { grid-template-columns: 1fr; }
   }
 </style>

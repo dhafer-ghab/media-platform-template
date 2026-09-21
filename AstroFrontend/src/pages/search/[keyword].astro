@@ -1,0 +1,108 @@
+---
+import Pagination from '@/components/Pagination.astro';
+import PostGrid from '@/components/PostGrid.astro';
+import Layout from '@/layouts/Layout.astro';
+import type { PagedPosts } from '@/lib/server/posts';
+import { getPosts } from '@/lib/server/posts';
+import { cleanFilter, parsePage, parseSort, setCollectionCache, setNoStore } from '@/lib/server/page';
+
+const keyword = cleanFilter(Astro.params.keyword ?? '', 100);
+if (!keyword) return Astro.redirect('/search');
+
+const page = parsePage(Astro.url.searchParams.get('page'));
+const sort = parseSort(Astro.url.searchParams.get('sort'));
+let error = '';
+let result: PagedPosts = { items: [], page, pageSize: 20, totalCount: 0, totalPages: 0 };
+
+try {
+  result = await getPosts({ q: keyword, sort, page, pageSize: 20 });
+  setCollectionCache(Astro.response.headers);
+} catch {
+  error = 'Search is temporarily unavailable. Please try again shortly.';
+  Astro.response.status = 502;
+  setNoStore(Astro.response.headers);
+}
+---
+
+<Layout
+  title={`“${keyword}” — Search — Verso`}
+  description={`Published work matching ${keyword}.`}
+  initialQ={keyword}
+  robots="noindex,follow"
+  canonical={`${Astro.url.origin}/search/${encodeURIComponent(keyword)}`}
+>
+  <main class="container search-page">
+    <a class="back-link" href="/search">← New search</a>
+    <div class="eyebrow">Search results</div>
+    <h1 class="h-display">“{keyword}”</h1>
+
+    <form class="search-tools" action={`/search/${encodeURIComponent(keyword)}`} method="get">
+      <p><strong>{result.totalCount}</strong> {result.totalCount === 1 ? 'result' : 'results'}</p>
+      <label>
+        <span>Sort</span>
+        <select name="sort">
+          <option value="newest" selected={sort === 'newest'}>Newest first</option>
+          <option value="popular" selected={sort === 'popular'}>Most viewed</option>
+          <option value="oldest" selected={sort === 'oldest'}>Oldest first</option>
+          <option value="title" selected={sort === 'title'}>Title A–Z</option>
+        </select>
+      </label>
+      <button class="btn btn-primary" type="submit">Apply</button>
+    </form>
+
+    {error ? (
+      <div class="error-state" role="alert">{error}</div>
+    ) : (
+      <>
+        <PostGrid posts={result.items} emptyMessage={`No published works match “${keyword}”.`} />
+        <Pagination
+          page={result.page}
+          totalPages={result.totalPages}
+          basePath={`/search/${encodeURIComponent(keyword)}`}
+          params={{ sort: sort === 'newest' ? undefined : sort }}
+        />
+      </>
+    )}
+  </main>
+</Layout>
+
+<style>
+  .search-page { padding: clamp(40px, 6vw, 78px) 0 100px; }
+  .eyebrow { margin-top: 24px; }
+  h1 {
+    font-size: clamp(42px, 7vw, 92px);
+    margin: 0.15em 0 34px;
+  }
+  .search-tools {
+    align-items: end;
+    border-bottom: 1px solid var(--border-soft);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+    justify-content: flex-end;
+    margin-bottom: 32px;
+    padding-bottom: 22px;
+  }
+  .search-tools p { color: var(--muted); margin: 0 auto 12px 0; }
+  .search-tools label { display: grid; gap: 5px; }
+  .search-tools label span {
+    color: var(--muted);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+  select {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    min-height: 44px;
+    padding: 0 12px;
+  }
+  .error-state {
+    border: 1px solid var(--border-soft);
+    color: var(--muted);
+    padding: 42px;
+    text-align: center;
+  }
+</style>

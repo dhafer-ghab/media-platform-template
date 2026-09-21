@@ -1,0 +1,491 @@
+---
+export interface Props {
+  title?: string;
+  placeholder?: string;
+  maxItems?: number;
+}
+
+const {
+  title = 'URL list',
+  placeholder = 'https://example.com/image.jpg',
+  maxItems = 50,
+} = Astro.props;
+---
+
+<div
+  class="url-sender"
+  data-max-items={String(maxItems)}
+  aria-label="URL list collector"
+>
+  <header class="url-sender-head">
+    <h2 class="h-section">{title}</h2>
+    <span class="url-count" id="url-count">0</span>
+  </header>
+
+  <div class="url-input-row">
+    <input
+      type="url"
+      id="url-input"
+      class="url-input"
+      placeholder={placeholder}
+      autocomplete="off"
+      enterkeyhint="done"
+    />
+    <button type="button" id="url-add-btn" class="btn btn-primary btn-sm">
+      Add URL
+    </button>
+  </div>
+
+  <p class="url-hint">Tip: paste several URLs separated by commas or new lines.</p>
+
+  <ul class="url-list" id="url-list" role="list" aria-live="polite"></ul>
+
+  <div class="url-empty" id="url-empty">
+    <svg
+      class="url-empty-icon"
+      width="40"
+      height="40"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="1.5"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+      <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+    </svg>
+    <p>No URLs added yet.</p>
+  </div>
+
+  <template id="url-item-template">
+    <li class="url-item">
+      <span class="url-item-index"></span>
+      <span class="url-item-text"></span>
+      <button class="url-item-remove" type="button" aria-label="Remove URL">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </button>
+    </li>
+  </template>
+
+  <div class="url-actions" id="url-actions" hidden>
+    <button type="button" id="url-send-btn" class="btn btn-primary">
+      Send <span id="url-send-count"></span>
+    </button>
+    <button type="button" id="url-clear-btn" class="btn btn-ghost">Clear</button>
+  </div>
+
+  <p class="url-message" id="url-message" role="status" aria-live="polite"></p>
+</div>
+
+<style>
+  .url-sender {
+    margin-top: 2.5rem;
+    padding: 1.5rem;
+    background: var(--surface);
+    border: 1px solid var(--border-soft);
+    border-radius: 14px;
+  }
+
+  .url-sender-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1.25rem;
+  }
+
+  .url-sender-head .h-section {
+    font-size: 1.35rem;
+  }
+
+  .url-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.75rem;
+    height: 1.75rem;
+    padding: 0 0.5rem;
+    border-radius: 999px;
+    background: var(--chip-bg);
+    color: var(--accent);
+    font-size: 0.8rem;
+    font-weight: 600;
+  }
+
+  .url-input-row {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+  }
+
+  .url-input {
+    flex: 1;
+    min-width: 0;
+    padding: 0.85rem 1rem;
+    font-family: 'Archivo', system-ui, sans-serif;
+    font-size: 0.95rem;
+    color: var(--text);
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    outline: none;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .url-input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--chip-bg);
+  }
+
+  .url-hint {
+    margin: 0.5rem 0 0;
+    font-size: 0.8rem;
+    color: var(--muted);
+  }
+
+  .url-list {
+    list-style: none;
+    margin: 1.25rem 0 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+  }
+
+  .url-list:empty {
+    display: none;
+  }
+
+  .url-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    background: var(--bg);
+    border: 1px solid var(--border-soft);
+    border-radius: 10px;
+    animation: urlItemEnter 220ms ease forwards;
+  }
+
+  .url-item.removing {
+    animation: urlItemExit 200ms ease forwards;
+  }
+
+  .url-item-index {
+    flex-shrink: 0;
+    width: 1.5rem;
+    height: 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    background: var(--chip-bg);
+    color: var(--muted);
+    font-size: 0.7rem;
+    font-weight: 700;
+  }
+
+  .url-item-text {
+    flex: 1;
+    min-width: 0;
+    font-size: 0.9rem;
+    color: var(--text);
+    word-break: break-all;
+  }
+
+  .url-item-remove {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    padding: 0;
+    border: 1px solid var(--border-soft);
+    border-radius: 999px;
+    background: var(--bg);
+    color: var(--muted);
+    cursor: pointer;
+    transition: color 0.2s ease, background 0.2s ease, border-color 0.2s ease, transform 0.1s ease;
+  }
+
+  .url-item-remove:hover {
+    color: var(--accent);
+    background: var(--chip-bg);
+    border-color: var(--border);
+  }
+
+  .url-item-remove:active {
+    transform: scale(0.92);
+  }
+
+  .url-item-remove svg {
+    display: block;
+  }
+
+  .url-empty {
+    text-align: center;
+    padding: 2rem 1rem;
+    color: var(--faint);
+  }
+
+  .url-empty.hidden {
+    display: none;
+  }
+
+  .url-empty-icon {
+    margin-bottom: 0.5rem;
+    color: var(--border);
+  }
+
+  .url-empty p {
+    margin: 0;
+    font-size: 0.9rem;
+  }
+
+  .url-actions {
+    display: flex;
+    gap: 0.75rem;
+    margin-top: 1.25rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border-soft);
+  }
+
+  .url-message {
+    min-height: 1.25rem;
+    margin: 0.75rem 0 0;
+    font-size: 0.85rem;
+    font-weight: 500;
+  }
+
+  .url-message.success {
+    color: #3d9a50;
+  }
+
+  .url-message.error {
+    color: var(--accent);
+  }
+
+  @keyframes urlItemEnter {
+    from {
+      opacity: 0;
+      transform: translateY(-6px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  @keyframes urlItemExit {
+    from {
+      opacity: 1;
+      transform: none;
+    }
+    to {
+      opacity: 0;
+      transform: translateX(12px);
+    }
+  }
+
+  @media (max-width: 500px) {
+    .url-input-row {
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    .url-input-row .btn {
+      width: 100%;
+    }
+  }
+</style>
+
+<script>
+  import { filesApi } from '@/api';
+
+  const root = document.querySelector('.url-sender') as HTMLElement;
+  if (!root) throw new Error('URL sender root not found');
+
+  const input = root.querySelector('#url-input') as HTMLInputElement;
+  const addBtn = root.querySelector('#url-add-btn') as HTMLButtonElement;
+  const listEl = root.querySelector('#url-list') as HTMLUListElement;
+  const emptyEl = root.querySelector('#url-empty') as HTMLDivElement;
+  const actionsEl = root.querySelector('#url-actions') as HTMLDivElement;
+  const sendBtn = root.querySelector('#url-send-btn') as HTMLButtonElement;
+  const clearBtn = root.querySelector('#url-clear-btn') as HTMLButtonElement;
+  const countEl = root.querySelector('#url-count') as HTMLSpanElement;
+  const sendCountEl = root.querySelector('#url-send-count') as HTMLSpanElement;
+  const messageEl = root.querySelector('#url-message') as HTMLParagraphElement;
+  const template = root.querySelector('#url-item-template') as HTMLTemplateElement;
+
+  const maxItems = Number(root.dataset.maxItems ?? '50');
+  const urls: string[] = [];
+
+  function isValidUrl(raw: string): boolean {
+    try {
+      new URL(raw.startsWith('http') ? raw : `https://${raw}`);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  function normalizeUrl(raw: string): string {
+    const trimmed = raw.trim();
+    return trimmed.startsWith('http') ? trimmed : `https://${trimmed}`;
+  }
+
+  function setMessage(text: string, type: 'success' | 'error' | '' = ''): void {
+    messageEl.textContent = text;
+    messageEl.className = 'url-message' + (type ? ` ${type}` : '');
+    if (!text) return;
+    window.setTimeout(() => {
+      messageEl.textContent = '';
+      messageEl.className = 'url-message';
+    }, 3500);
+  }
+
+  function updateUI(): void {
+    const count = urls.length;
+    countEl.textContent = String(count);
+    emptyEl.classList.toggle('hidden', count > 0);
+    actionsEl.hidden = count === 0;
+    sendBtn.disabled = count === 0;
+    sendCountEl.textContent = count > 0 ? `(${count})` : '';
+  }
+
+  function createItemElement(url: string, index: number): HTMLElement {
+    const fragment = template.content.cloneNode(true) as DocumentFragment;
+    const li = fragment.querySelector('.url-item') as HTMLLIElement;
+    li.dataset.index = String(index);
+
+    const indexEl = fragment.querySelector('.url-item-index') as HTMLSpanElement;
+    indexEl.textContent = String(index + 1);
+
+    const textEl = fragment.querySelector('.url-item-text') as HTMLSpanElement;
+    textEl.textContent = url;
+
+    const removeBtn = fragment.querySelector('.url-item-remove') as HTMLButtonElement;
+    removeBtn.addEventListener('click', () => removeUrl(index));
+
+    return li;
+  }
+
+  function renderAll(): void {
+    listEl.replaceChildren();
+    urls.forEach((url, i) => listEl.appendChild(createItemElement(url, i)));
+    updateUI();
+  }
+
+  function addUrls(raw: string): void {
+    const candidates = raw
+      .split(/[,\n]+/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+
+    const added: string[] = [];
+    const invalid: string[] = [];
+
+    for (const candidate of candidates) {
+      if (!isValidUrl(candidate)) {
+        invalid.push(candidate);
+        continue;
+      }
+      const normalized = normalizeUrl(candidate);
+      if (urls.includes(normalized)) continue;
+      if (urls.length >= maxItems) {
+        setMessage(`Maximum ${maxItems} URLs allowed.`, 'error');
+        break;
+      }
+      urls.push(normalized);
+      added.push(normalized);
+    }
+
+    if (added.length) {
+      renderAll();
+      setMessage(`${added.length} URL(s) added.`, 'success');
+    }
+    if (invalid.length) {
+      setMessage(`Skipped invalid: ${invalid.join(', ')}`, 'error');
+    }
+    if (!added.length && !invalid.length && candidates.length) {
+      setMessage('No valid URLs found.', 'error');
+    }
+  }
+
+  function removeUrl(index: number): void {
+    const item = listEl.querySelector(`[data-index="${index}"]`);
+    if (!item) return;
+
+    item.classList.add('removing');
+    item.addEventListener(
+      'animationend',
+      () => {
+        urls.splice(index, 1);
+        renderAll();
+      },
+      { once: true },
+    );
+  }
+
+  function clearAll(): void {
+    urls.length = 0;
+    renderAll();
+    setMessage('List cleared.', 'success');
+  }
+
+  async function sendUrls(): Promise<void> {
+    if (urls.length === 0) return;
+
+    sendBtn.disabled = true;
+    const originalChildren = Array.from(sendBtn.childNodes);
+    sendBtn.replaceChildren(document.createTextNode('Sending…'));
+
+    try {
+      await filesApi.sendStringList([...urls]);
+      urls.length = 0;
+      renderAll();
+      setMessage('URLs sent successfully.', 'success');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to send URLs.';
+      setMessage(message, 'error');
+    } finally {
+      sendBtn.replaceChildren(...originalChildren);
+      sendBtn.disabled = urls.length === 0;
+    }
+  }
+
+  addBtn.addEventListener('click', () => {
+    const value = input.value;
+    if (!value.trim()) return;
+    addUrls(value);
+    input.value = '';
+    input.focus();
+  });
+
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      addBtn.click();
+    }
+  });
+
+  input.addEventListener('paste', (e) => {
+    const pasted = e.clipboardData?.getData('text/plain') ?? '';
+    if (pasted.includes(',') || pasted.includes('\n')) {
+      e.preventDefault();
+      addUrls(pasted);
+      input.value = '';
+    }
+  });
+
+  clearBtn.addEventListener('click', clearAll);
+  sendBtn.addEventListener('click', sendUrls);
+
+  updateUI();
+</script>

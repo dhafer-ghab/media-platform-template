@@ -1,9 +1,9 @@
 using Microsoft.EntityFrameworkCore;
 using SharedKernal.Messaging;
-using Users.Common;
 using Users.Domain;
 using Users.Domain.Abstractions;
 using Users.Infrastracture.Persistence;
+using SharedKernel.Entities.Enums;
 
 namespace Users.IntegrationTests;
 

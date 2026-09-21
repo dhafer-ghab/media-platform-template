@@ -1,4 +1,4 @@
-﻿using Users.Common;
+﻿using SharedKernel.Entities.Enums;
 
 namespace Users.Presentation.Users;
 

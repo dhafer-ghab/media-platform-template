@@ -4,6 +4,8 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using Storage.Infrastracture;
+using Storage.Presentation;
 using Scalar.AspNetCore;
 using System.Net;
 using System.Text;

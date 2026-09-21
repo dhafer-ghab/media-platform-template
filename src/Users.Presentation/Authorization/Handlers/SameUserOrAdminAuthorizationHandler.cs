@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
-using Users.Common;
+using SharedKernel.Entities.Enums;
 using Users.Presentation.Authorization.Requirements;
 
 namespace Users.Presentation.Authorization.Handlers;

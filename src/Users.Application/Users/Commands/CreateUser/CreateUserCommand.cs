@@ -1,5 +1,5 @@
 using SharedKernal.Messaging;
-using Users.Common;
+using SharedKernel.Entities.Enums;
 using SharedKernal.Results;
 
 namespace Users.Application.Users.Commands.CreateUser;

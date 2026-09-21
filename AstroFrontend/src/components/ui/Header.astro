@@ -3,129 +3,180 @@ interface Props {
   initialQ?: string;
 }
 const { initialQ = '' } = Astro.props;
-const currentPath = Astro.url.pathname.replace(/\/$/, '') || '/';
-const discoverActive = currentPath === '/';
-const exploreActive = currentPath === '/explore';
-const artistsActive = currentPath === '/artists' || currentPath.startsWith('/artists/');
-const categoriesActive = currentPath === '/categories' || currentPath.startsWith('/categories/');
-const tagsActive = currentPath === '/tags' || currentPath.startsWith('/tags/');
+const pathname = Astro.url.pathname;
+const requestedSort = Astro.url.searchParams.get('sort');
+const activeSort = requestedSort === 'popular' || requestedSort === 'oldest' || requestedSort === 'title'
+  ? requestedSort
+  : 'newest';
+const sortLabels = {
+  newest: 'Newest first',
+  popular: 'Most viewed',
+  oldest: 'Oldest first',
+  title: 'Title A–Z',
+};
+const navItems = [
+  { href: '/explore', label: 'Explore', activePrefixes: ['/explore'] },
+  { href: '/artists', label: 'Artists', activePrefixes: ['/artists'] },
+  { href: '/categories', label: 'Categories', activePrefixes: ['/categories'] },
+  { href: '/tags', label: 'Tags', activePrefixes: ['/tag', '/tags'] },
+];
 ---
 
 <header class="site-header">
   <div class="container site-header__inner">
     <a href="/" class="brand">VERSO</a>
     <nav class="nav" aria-label="Primary navigation">
-      <a class:list={{ 'is-active': discoverActive }} href="/" aria-current={discoverActive ? 'page' : undefined}>Discover</a>
-      <a class:list={{ 'is-active': exploreActive }} href="/explore" aria-current={exploreActive ? 'page' : undefined}>Explore</a>
-      <a class:list={{ 'is-active': artistsActive }} href="/artists" aria-current={currentPath === '/artists' ? 'page' : undefined}>Artists</a>
-      <a class:list={{ 'is-active': categoriesActive }} href="/categories" aria-current={currentPath === '/categories' ? 'page' : undefined}>Categories</a>
-      <a class:list={{ 'is-active': tagsActive }} href="/tags" aria-current={currentPath === '/tags' ? 'page' : undefined}>Tags</a>
-      <a href="/login" id="auth-link">Login</a>
+      {navItems.map((item) => (
+        <a
+          href={item.href}
+          aria-current={item.activePrefixes.some((prefix) => pathname.startsWith(prefix)) ? 'page' : undefined}
+        >
+          {item.label}
+        </a>
+      ))}
+      <a href="/login" id="auth-link" aria-current={pathname === '/login' ? 'page' : undefined}>Login</a>
     </nav>
     <form class="search" role="search" action="/search" method="get" data-search-form>
-      <svg class="search__icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
-        <circle cx="11" cy="11" r="7"></circle>
-        <path d="M21 21l-4.3-4.3"></path>
-      </svg>
-      <label class="search__label" for="site-search">Search artists, works, and tags</label>
-      <input
-        id="site-search"
-        type="search"
-        name="q"
-        value={initialQ}
-        placeholder="Search artists, works, tags"
-        autocomplete="off"
-        data-header-search
-      />
+      <label class="search__field">
+        <span class="sr-only">Keyword</span>
+        <svg class="search__icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+          <circle cx="11" cy="11" r="7"></circle>
+          <path d="M21 21l-4.3-4.3"></path>
+        </svg>
+        <input
+          type="search"
+          name="q"
+          value={initialQ}
+          placeholder="Search the index"
+          autocomplete="off"
+          required
+        />
+      </label>
+
+      <details class="filter-menu">
+        <summary
+          aria-label="Filter and sort"
+          title="Filter and sort"
+          class:list={{ 'is-active': activeSort !== 'newest' }}
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
+            <path d="M4 7h10M18 7h2M4 17h2M10 17h10"></path>
+            <circle cx="16" cy="7" r="2"></circle>
+            <circle cx="8" cy="17" r="2"></circle>
+          </svg>
+          <span class="filter-menu__label">Filter</span>
+          <span class="filter-menu__indicator" aria-hidden="true"></span>
+        </summary>
+
+        <div class="filter-menu__panel">
+          <div class="filter-menu__head">
+            <span>Order results</span>
+            <strong>{sortLabels[activeSort]}</strong>
+          </div>
+          <fieldset>
+            <legend class="sr-only">Sort search results</legend>
+            {Object.entries(sortLabels).map(([value, label]) => (
+              <label class="sort-option">
+                <input type="radio" name="sort" value={value} checked={activeSort === value} />
+                <span>{label}</span>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                  <path d="M5 12l4 4L19 6"></path>
+                </svg>
+              </label>
+            ))}
+          </fieldset>
+          <button type="submit" class="filter-menu__apply">View results <span>→</span></button>
+        </div>
+      </details>
     </form>
     <button
       type="button"
       class="theme-toggle"
       data-theme-toggle
-      aria-label="Toggle dark mode"
-      title="Toggle theme"
+      aria-label="Switch to dark mode"
+      aria-pressed="false"
+      title="Switch to dark mode"
     >
-      <svg class="theme-toggle__icon theme-toggle__icon--sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <svg class="theme-toggle__icon theme-toggle__icon--sun" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
         <circle cx="12" cy="12" r="4"></circle>
-        <path d="M12 2v2"></path>
-        <path d="M12 20v2"></path>
-        <path d="M4.93 4.93l1.41 1.41"></path>
-        <path d="M17.66 17.66l1.41 1.41"></path>
-        <path d="M2 12h2"></path>
-        <path d="M20 12h2"></path>
-        <path d="M4.93 19.07l1.41-1.41"></path>
-        <path d="M17.66 6.34l1.41-1.41"></path>
+        <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"></path>
       </svg>
-      <svg class="theme-toggle__icon theme-toggle__icon--moon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <svg class="theme-toggle__icon theme-toggle__icon--moon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
         <path d="M21 12.79A9 9 0 1 1 11.21 3a7 7 0 0 0 9.79 9.79z"></path>
       </svg>
     </button>
   </div>
 </header>
 
-<script>
-  function setTheme(theme: 'light' | 'dark', persist = true): void {
-    document.documentElement.setAttribute('data-theme', theme);
-    if (persist) {
+<script is:inline data-theme-script>
+  (() => {
+    const storageKey = 'verso:theme';
+    const root = document.documentElement;
+    const buttons = document.querySelectorAll('[data-theme-toggle]');
+
+    const savedTheme = () => {
       try {
-        localStorage.setItem('verso:theme', theme);
+        const value = localStorage.getItem(storageKey);
+        return value === 'light' || value === 'dark' ? value : null;
       } catch {
-        /* ignore */
+        return null;
       }
-    }
-    document
-      .querySelectorAll<HTMLButtonElement>('[data-theme-toggle]')
-      .forEach((btn) => {
-        const isDark = theme === 'dark';
-        btn.setAttribute('aria-pressed', String(isDark));
-        btn.setAttribute(
-          'aria-label',
-          isDark ? 'Switch to light mode' : 'Switch to dark mode',
-        );
+    };
+
+    const updateControls = () => {
+      const isDark = root.dataset.theme === 'dark';
+      const label = isDark ? 'Switch to light mode' : 'Switch to dark mode';
+
+      buttons.forEach((button) => {
+        button.setAttribute('aria-pressed', String(isDark));
+        button.setAttribute('aria-label', label);
+        button.setAttribute('title', label);
       });
-  }
+    };
 
-  const current =
-    (document.documentElement.getAttribute('data-theme') as 'light' | 'dark') ||
-    'light';
-  setTheme(current, false);
+    const applyTheme = (theme, persist = true) => {
+      root.dataset.theme = theme;
+      document.querySelector('[data-theme-color]')?.setAttribute(
+        'content',
+        theme === 'dark' ? '#14110e' : '#f5f2ec',
+      );
+      if (persist) {
+        try {
+          localStorage.setItem(storageKey, theme);
+        } catch {
+          // Storage may be unavailable in privacy-restricted contexts.
+        }
+      }
+      updateControls();
+    };
 
-  document
-    .querySelectorAll<HTMLButtonElement>('[data-theme-toggle]')
-    .forEach((btn) => {
-      btn.addEventListener('click', () => {
-        const next =
-          document.documentElement.getAttribute('data-theme') === 'dark'
-            ? 'light'
-            : 'dark';
-        setTheme(next);
+    buttons.forEach((button) => {
+      button.addEventListener('click', () => {
+        applyTheme(root.dataset.theme === 'dark' ? 'light' : 'dark');
       });
     });
 
-  const media = window.matchMedia('(prefers-color-scheme: dark)');
-  media.addEventListener('change', (e) => {
+    updateControls();
+
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (event) => {
+      if (!savedTheme()) applyTheme(event.matches ? 'dark' : 'light', false);
+    });
+
+    const authLink = document.getElementById('auth-link');
     try {
-      if (localStorage.getItem('verso:theme')) return;
+      if (authLink && localStorage.getItem('authToken')) {
+        authLink.textContent = 'Logout';
+        authLink.setAttribute('href', '#');
+        authLink.addEventListener('click', (event) => {
+          event.preventDefault();
+          localStorage.removeItem('authToken');
+          window.location.href = '/';
+        });
+      }
     } catch {
-      /* ignore */
+      // Keep the login link when browser storage is unavailable.
     }
-    setTheme(e.matches ? 'dark' : 'light', false);
-  });
-
-  document.addEventListener('DOMContentLoaded', () => {
-    const authLink = document.getElementById('auth-link') as HTMLAnchorElement | null;     
-    const token = localStorage.getItem('authToken');
-
-    if (authLink && token) {
-      authLink.textContent = 'Logout';
-      authLink.href = '#';
-      authLink.addEventListener('click', (e) => {
-        e.preventDefault();
-        localStorage.removeItem('authToken');
-        window.location.href = '/';
-      });
-    }
-  });
+  })();
 </script>
 
 <style>
@@ -167,7 +218,7 @@ const tagsActive = currentPath === '/tags' || currentPath.startsWith('/tags/');
   .nav a:hover {
     color: var(--accent);
   }
-  .nav a.is-active {
+  .nav a[aria-current='page'] {
     color: var(--accent);
   }
   .search {
@@ -175,11 +226,23 @@ const tagsActive = currentPath === '/tags' || currentPath.startsWith('/tags/');
     display: flex;
     align-items: center;
     gap: 9px;
-    border-bottom: 1px solid var(--border);
-    padding-bottom: 5px;
     min-width: 180px;
-    flex: 0 1 300px;
+    flex: 0 1 360px;
     color: var(--muted);
+    position: relative;
+  }
+  .search__field {
+    align-items: center;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    flex: 1 1 auto;
+    gap: 9px;
+    min-width: 0;
+    padding: 7px 2px;
+    transition: border-color 0.2s;
+  }
+  .search__field:focus-within {
+    border-color: var(--accent);
   }
   .search input {
     border: none;
@@ -188,70 +251,195 @@ const tagsActive = currentPath === '/tags' || currentPath.startsWith('/tags/');
     font-size: 14px;
     font-family: 'Archivo', system-ui, sans-serif;
     color: var(--text);
+    min-width: 0;
     width: 100%;
   }
   .search__icon {
     flex-shrink: 0;
   }
-
-  .theme-toggle {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 36px;
-    height: 36px;
-    padding: 0;
-    border: 1px solid var(--border);
-    background: transparent;
-    color: var(--text);
-    border-radius: 999px;
-    cursor: pointer;
-    transition: border-color 0.2s, color 0.2s, background 0.2s;
+  .sr-only {
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+    height: 1px;
+    overflow: hidden;
+    position: absolute;
+    white-space: nowrap;
+    width: 1px;
   }
-  .theme-toggle:hover {
+  .filter-menu { flex: 0 0 auto; position: relative; }
+  .filter-menu summary {
+    align-items: center;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    color: var(--text-2);
+    cursor: pointer;
+    display: inline-flex;
+    gap: 7px;
+    height: 38px;
+    justify-content: center;
+    list-style: none;
+    padding: 0 13px;
+    position: relative;
+    transition: background-color 0.2s, border-color 0.2s, color 0.2s;
+  }
+  .filter-menu summary::-webkit-details-marker { display: none; }
+  .filter-menu summary:hover,
+  .filter-menu[open] summary {
+    background: var(--chip-bg);
     border-color: var(--ink);
     color: var(--accent);
   }
-  .theme-toggle__icon {
-    display: block;
+  .filter-menu summary:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
   }
-  .theme-toggle__icon--moon {
+  .filter-menu__label {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .filter-menu__indicator {
+    background: var(--accent);
+    border: 2px solid var(--bg);
+    border-radius: 999px;
     display: none;
-  }
-  :global([data-theme='dark']) .theme-toggle__icon--sun {
-    display: none;
-  }
-  :global([data-theme='dark']) .theme-toggle__icon--moon {
-    display: block;
-  }
-  .search:focus-within {
-    border-color: var(--accent);
-    box-shadow: 0 1px 0 var(--accent);
-  }
-  .search__label {
+    height: 8px;
     position: absolute;
-    width: 1px;
-    height: 1px;
-    padding: 0;
-    margin: -1px;
-    overflow: hidden;
-    clip: rect(0, 0, 0, 0);
-    white-space: nowrap;
+    right: -1px;
+    top: -1px;
+    width: 8px;
+  }
+  .filter-menu summary.is-active .filter-menu__indicator { display: block; }
+  .filter-menu__panel {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    box-shadow: 0 18px 50px var(--shadow);
+    color: var(--text);
+    min-width: 270px;
+    padding: 22px;
+    position: absolute;
+    right: 0;
+    top: calc(100% + 13px);
+    z-index: 60;
+  }
+  .filter-menu__panel::before {
+    background: var(--bg);
+    border-left: 1px solid var(--border);
+    border-top: 1px solid var(--border);
+    content: '';
+    height: 10px;
+    position: absolute;
+    right: 24px;
+    top: -6px;
+    transform: rotate(45deg);
+    width: 10px;
+  }
+  .filter-menu__head {
+    border-bottom: 1px solid var(--border-soft);
+    display: grid;
+    gap: 6px;
+    padding-bottom: 16px;
+  }
+  .filter-menu__head span {
+    color: var(--muted);
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+  }
+  .filter-menu__head strong {
+    font-family: 'Spectral', serif;
+    font-size: 21px;
+    font-style: italic;
+    font-weight: 400;
+  }
+  .filter-menu fieldset {
     border: 0;
+    display: grid;
+    margin: 10px 0 16px;
+    padding: 0;
   }
-  @media (max-width: 760px) {
-    .site-header__inner {
-      gap: 16px;
-    }
-    .nav {
-      order: 3;
-      width: 100%;
-      gap: 20px;
-      overflow-x: auto;
-      padding-bottom: 2px;
-    }
-    .search {
-      min-width: 0;
-    }
+  .sort-option {
+    align-items: center;
+    cursor: pointer;
+    display: grid;
+    font-size: 12px;
+    gap: 10px;
+    grid-template-columns: auto 1fr auto;
+    padding: 10px 2px;
   }
+  .sort-option input {
+    accent-color: var(--accent);
+    height: 14px;
+    margin: 0;
+    width: 14px;
+  }
+  .sort-option svg { color: var(--accent); opacity: 0; }
+  .sort-option:has(input:checked) { color: var(--accent); }
+  .sort-option:has(input:checked) svg { opacity: 1; }
+  .filter-menu__apply {
+    align-items: center;
+    background: var(--ink);
+    border: 0;
+    color: var(--on-ink);
+    cursor: pointer;
+    display: flex;
+    font-size: 10px;
+    font-weight: 600;
+    justify-content: space-between;
+    letter-spacing: 0.12em;
+    min-height: 44px;
+    padding: 0 16px;
+    text-transform: uppercase;
+    width: 100%;
+  }
+  .filter-menu__apply:hover { background: var(--accent); }
+  .theme-toggle {
+    align-items: center;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    color: var(--text);
+    cursor: pointer;
+    display: inline-flex;
+    flex: 0 0 38px;
+    height: 38px;
+    justify-content: center;
+    padding: 0;
+    transition: background-color 0.2s, border-color 0.2s, color 0.2s, transform 0.2s;
+    width: 38px;
+  }
+  .theme-toggle:hover {
+    background: var(--chip-bg);
+    border-color: var(--ink);
+    color: var(--accent);
+    transform: rotate(8deg);
+  }
+  .theme-toggle:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+  }
+  .theme-toggle__icon--sun { display: none; }
+  .theme-toggle__icon--moon { display: block; }
+  :global([data-theme='dark']) .theme-toggle__icon--sun { display: block; }
+  :global([data-theme='dark']) .theme-toggle__icon--moon { display: none; }
+
+  @media (max-width: 680px) {
+    .site-header__inner { gap: 10px; }
+    .brand { font-size: 20px; }
+    .nav { gap: 14px; order: 3; width: 100%; }
+    .search { flex: 1 1 150px; min-width: 0; }
+    .filter-menu summary { padding: 0; width: 38px; }
+    .filter-menu__label { display: none; }
+    .filter-menu__panel {
+      position: fixed;
+      right: 4vw;
+      top: 72px;
+      width: min(330px, 92vw);
+    }
+    .filter-menu__panel::before { display: none; }
+    .theme-toggle { flex-basis: 36px; height: 36px; width: 36px; }
+  }
+
 </style>

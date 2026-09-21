@@ -1,0 +1,184 @@
+---
+import Layout from '@/layouts/Layout.astro';
+---
+
+<Layout title="Users · Admin" description="Manage platform users">
+  <main class="container">
+    <header class="page-head">
+      <p class="eyebrow">Admin</p>
+      <h1 class="h-display">Users</h1>
+      <p class="lede">View all registered users and their roles. Only admins can access this list.</p>
+    </header>
+
+    <div id="auth-notice" class="notice hidden">
+      <p>You need to be logged in as an admin to manage users.</p>
+      <a class="btn btn-primary btn-sm" href="/login">Log in</a>
+    </div>
+
+    <section id="browser" aria-label="User browser">
+      <div class="toolbar">
+        <a class="btn btn-primary btn-sm" href="/admin/upload">+ Upload</a>
+        <button type="button" id="refresh-btn" class="btn btn-ghost btn-sm">Refresh</button>
+      </div>
+
+      <p id="loading" class="state">Loading users…</p>
+      <p id="empty" class="state" hidden>No users found.</p>
+      <p id="error" class="state state--error" hidden></p>
+
+      <ul id="list" class="user-list"></ul>
+    </section>
+  </main>
+</Layout>
+
+<style>
+  .page-head {
+    padding: 3rem 0 1.5rem;
+  }
+
+  .lede {
+    margin-top: 0.75rem;
+    max-width: 46ch;
+    color: var(--muted);
+    font-size: 1.05rem;
+    line-height: 1.6;
+  }
+
+  .notice {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    padding: 1rem 1.25rem;
+    background: var(--surface);
+    border: 1px solid var(--border-soft);
+    border-radius: 10px;
+    color: var(--text-2);
+  }
+
+  .notice p {
+    margin: 0;
+    flex: 1;
+  }
+
+  .toolbar {
+    display: flex;
+    gap: 0.75rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .state {
+    color: var(--muted);
+    padding: 2rem 0;
+  }
+
+  .state a {
+    color: var(--accent);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+
+  .state--error {
+    color: var(--accent);
+  }
+
+  .user-list {
+    list-style: none;
+    margin: 0;
+    padding: 0 0 3rem;
+    display: grid;
+    gap: 0.85rem;
+  }
+
+  .user-list > li {
+    display: block;
+  }
+
+  .hidden { display: none; }
+</style>
+
+<script>
+  import { usersApi, ApiError } from '@/api';
+  import { isLoggedIn } from '@/lib/auth';
+  import '@/components/ui/UserCard.ts';
+  import type { UserDto } from '@/api';
+
+  const list = document.getElementById('list')!;
+  const loading = document.getElementById('loading')!;
+  const empty = document.getElementById('empty')!;
+  const error = document.getElementById('error')!;
+  const refreshBtn = document.getElementById('refresh-btn')! as HTMLButtonElement;
+
+  function createUserItem(user: UserDto): HTMLLIElement {
+    const li = document.createElement('li');
+    const card = document.createElement('user-card');
+    card.setAttribute('data-id', user.id);
+    card.setAttribute('data-name', user.name);
+    card.setAttribute('data-email', user.email);
+    card.setAttribute('data-role', user.role);
+    card.setAttribute('data-created', user.createdDate);
+    li.appendChild(card);
+    return li;
+  }
+
+  async function loadUsers(): Promise<void> {
+    loading.hidden = false;
+    empty.hidden = true;
+    error.hidden = true;
+    list.replaceChildren();
+    refreshBtn.disabled = true;
+
+    try {
+      const users = await usersApi.list();
+      loading.hidden = true;
+
+      if (users.length === 0) {
+        empty.hidden = false;
+        return;
+      }
+
+      for (const user of users) {
+        list.appendChild(createUserItem(user));
+      }
+    } catch (err) {
+      loading.hidden = true;
+      error.hidden = false;
+      if (err instanceof ApiError && err.status === 401) {
+        error.textContent = 'Not logged in — please log in again.';
+      } else if (err instanceof ApiError && err.status === 403) {
+        error.textContent = 'Your account does not have the admin role.';
+      } else {
+        error.textContent = 'Could not load users. Please try again.';
+      }
+    } finally {
+      refreshBtn.disabled = false;
+    }
+  }
+
+  list.addEventListener('user-delete', async (e) => {
+    const { id, name } = (e as CustomEvent).detail as { id: string; name: string };
+    if (!confirm(`Delete user "${name}"? This cannot be undone.`)) return;
+
+    try {
+      await usersApi.delete(id);
+      await loadUsers();
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 401) {
+        alert('You are no longer logged in.');
+      } else if (err instanceof ApiError && err.status === 403) {
+        alert('You do not have permission to delete users.');
+      } else {
+        alert('Failed to delete user. Please try again.');
+      }
+    }
+  });
+
+  console.log('isLoggedIn:', isLoggedIn());
+  if (!isLoggedIn()) {
+    document.getElementById('auth-notice')!.classList.remove('hidden');
+    document.getElementById('browser')!.classList.add('hidden');
+  } else {
+    loadUsers();
+  }
+
+  refreshBtn.addEventListener('click', loadUsers);
+</script>
